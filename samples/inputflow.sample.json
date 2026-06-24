@@ -1,0 +1,40 @@
+{
+  "Version": 1,
+  "Startup": false,
+  "ShowTrayIcon": true,
+  "LogLevel": "Info",
+  "Hotkeys": [
+    {
+      "Name": "Korean toggle",
+      "Keys": "Ctrl+Alt+Shift+K",
+      "Mode": "toggle",
+      "Target": "korean",
+      "ReturnBehavior": "alwaysSpecificLayout",
+      "Fallback": "us-intl"
+    }
+  ],
+  "Profiles": [
+    {
+      "Id": "us-intl",
+      "Match": {
+        "LanguageTag": "en-NL",
+        "LayoutNameContains": null,
+        "ProfileNameContains": null
+      },
+      "EnterMode": null
+    },
+    {
+      "Id": "korean",
+      "Match": {
+        "LanguageTag": "ko-KR",
+        "LayoutNameContains": null,
+        "ProfileNameContains": null
+      },
+      "EnterMode": "hangul"
+    }
+  ],
+  "ExcludedProcesses": [
+    "mstsc.exe",
+    "vmconnect.exe"
+  ]
+}

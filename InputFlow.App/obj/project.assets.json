@@ -25,6 +25,31 @@
           "bin/placeholder/InputFlow.Windows.dll": {}
         }
       }
+    },
+    "net8.0-windows7.0/win-x64": {
+      "InputFlow.Core/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v8.0",
+        "dependencies": {
+          "InputFlow.Windows": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/InputFlow.Core.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/InputFlow.Core.dll": {}
+        }
+      },
+      "InputFlow.Windows/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v8.0",
+        "compile": {
+          "bin/placeholder/InputFlow.Windows.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/InputFlow.Windows.dll": {}
+        }
+      }
     }
   },
   "libraries": {
@@ -52,7 +77,7 @@
     "version": "1.0.0",
     "restore": {
       "projectUniqueName": "D:\\Users\\Mica\\Downloads\\InputFlow-git\\InputFlow.App\\InputFlow.App.csproj",
-      "projectName": "InputFlow.App",
+      "projectName": "InputFlow",
       "projectPath": "D:\\Users\\Mica\\Downloads\\InputFlow-git\\InputFlow.App\\InputFlow.App.csproj",
       "packagesPath": "D:\\Users\\Mica\\.nuget\\packages\\",
       "outputPath": "D:\\Users\\Mica\\Downloads\\InputFlow-git\\InputFlow.App\\obj\\",
@@ -117,6 +142,11 @@
           }
         },
         "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.203/PortableRuntimeIdentifierGraph.json"
+      }
+    },
+    "runtimes": {
+      "win-x64": {
+        "#import": []
       }
     }
   }

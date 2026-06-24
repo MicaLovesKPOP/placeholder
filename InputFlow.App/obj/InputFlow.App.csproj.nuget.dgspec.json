@@ -8,7 +8,7 @@
       "version": "1.0.0",
       "restore": {
         "projectUniqueName": "D:\\Users\\Mica\\Downloads\\InputFlow-git\\InputFlow.App\\InputFlow.App.csproj",
-        "projectName": "InputFlow.App",
+        "projectName": "InputFlow",
         "projectPath": "D:\\Users\\Mica\\Downloads\\InputFlow-git\\InputFlow.App\\InputFlow.App.csproj",
         "packagesPath": "D:\\Users\\Mica\\.nuget\\packages\\",
         "outputPath": "D:\\Users\\Mica\\Downloads\\InputFlow-git\\InputFlow.App\\obj\\",
@@ -73,6 +73,11 @@
             }
           },
           "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.203/PortableRuntimeIdentifierGraph.json"
+        }
+      },
+      "runtimes": {
+        "win-x64": {
+          "#import": []
         }
       }
     },
@@ -143,6 +148,11 @@
           },
           "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.203/PortableRuntimeIdentifierGraph.json"
         }
+      },
+      "runtimes": {
+        "win-x64": {
+          "#import": []
+        }
       }
     },
     "D:\\Users\\Mica\\Downloads\\InputFlow-git\\InputFlow.Windows\\InputFlow.Windows.csproj": {
@@ -207,6 +217,11 @@
             }
           },
           "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.203/PortableRuntimeIdentifierGraph.json"
+        }
+      },
+      "runtimes": {
+        "win-x64": {
+          "#import": []
         }
       }
     }

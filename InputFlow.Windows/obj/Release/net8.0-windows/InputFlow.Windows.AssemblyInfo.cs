@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("InputFlow.Windows")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+434889e4a2f31051738bbdfb0791d9a43c7f7980")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3ff5ea54037b6bc2417aa83b495e026260e795f3")]
 [assembly: System.Reflection.AssemblyProductAttribute("InputFlow.Windows")]
 [assembly: System.Reflection.AssemblyTitleAttribute("InputFlow.Windows")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
