@@ -1,2 +1,5 @@
 <Solution>
+  <Project Path="InputFlow.App/InputFlow.App.csproj" />
+  <Project Path="InputFlow.Core/InputFlow.Core.csproj" />
+  <Project Path="InputFlow.Windows/InputFlow.Windows.csproj" />
 </Solution>

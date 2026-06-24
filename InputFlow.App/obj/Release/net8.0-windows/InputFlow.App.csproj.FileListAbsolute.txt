@@ -1,8 +1,3 @@
-D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\bin\Release\net8.0-windows\InputFlow.App.exe
-D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\bin\Release\net8.0-windows\InputFlow.App.deps.json
-D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\bin\Release\net8.0-windows\InputFlow.App.runtimeconfig.json
-D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\bin\Release\net8.0-windows\InputFlow.App.dll
-D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\bin\Release\net8.0-windows\InputFlow.App.pdb
 D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\bin\Release\net8.0-windows\InputFlow.Core.dll
 D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\bin\Release\net8.0-windows\InputFlow.Windows.dll
 D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\bin\Release\net8.0-windows\InputFlow.Core.pdb
@@ -14,8 +9,13 @@ D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\obj\Release\net8.0-windows\I
 D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\obj\Release\net8.0-windows\InputFlow.App.csproj.CoreCompileInputs.cache
 D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\obj\Release\net8.0-windows\InputFlow.App.sourcelink.json
 D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\obj\Release\net8.0-windows\InputFlo.DF1921D1.Up2Date
-D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\obj\Release\net8.0-windows\InputFlow.App.dll
-D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\obj\Release\net8.0-windows\refint\InputFlow.App.dll
-D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\obj\Release\net8.0-windows\InputFlow.App.pdb
 D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\obj\Release\net8.0-windows\InputFlow.App.genruntimeconfig.cache
-D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\obj\Release\net8.0-windows\ref\InputFlow.App.dll
+D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\bin\Release\net8.0-windows\InputFlow.exe
+D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\bin\Release\net8.0-windows\InputFlow.deps.json
+D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\bin\Release\net8.0-windows\InputFlow.runtimeconfig.json
+D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\bin\Release\net8.0-windows\InputFlow.dll
+D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\bin\Release\net8.0-windows\InputFlow.pdb
+D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\obj\Release\net8.0-windows\InputFlow.dll
+D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\obj\Release\net8.0-windows\refint\InputFlow.dll
+D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\obj\Release\net8.0-windows\InputFlow.pdb
+D:\Users\Mica\Downloads\InputFlow-git\InputFlow.App\obj\Release\net8.0-windows\ref\InputFlow.dll

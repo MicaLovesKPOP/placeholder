@@ -18,7 +18,7 @@ Requirements:
 
 Build:
 
-dotnet build .\InputFlow.sln -c Release
+dotnet build .\InputFlow.App\InputFlow.App.csproj -c Release
 
 Publish:
 

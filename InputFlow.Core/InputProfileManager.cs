@@ -18,7 +18,7 @@ namespace InputFlow.Core
         /// </summary>
         public static IReadOnlyList<InputProfile> EnumerateInstalledProfiles()
         {
-            int count = InputApis.GetKeyboardLayoutList(0, null);
+            int count = InputApis.GetKeyboardLayoutList(0, Array.Empty<IntPtr>());
             var list = new IntPtr[count];
             InputApis.GetKeyboardLayoutList(count, list);
             var profiles = new List<InputProfile>(count);

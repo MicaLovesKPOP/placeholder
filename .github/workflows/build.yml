@@ -20,7 +20,7 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Restore
-        run: dotnet restore .\InputFlow.sln
+        run: dotnet restore .\InputFlow.App\InputFlow.App.csproj
 
       - name: Build
-        run: dotnet build .\InputFlow.sln -c Release --no-restore
+        run: dotnet build .\InputFlow.App\InputFlow.App.csproj -c Release --no-restore

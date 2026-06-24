@@ -271,7 +271,7 @@ namespace InputFlow.App
             /// Exits the application.  Ensures that hotkeys and other resources
             /// are cleaned up.
             /// </summary>
-            private void ExitThread()
+            private new void ExitThread()
             {
                 // Clean up hotkeys and watchers
                 UnregisterAllHotkeys();

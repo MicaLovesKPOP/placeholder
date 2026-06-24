@@ -10,12 +10,12 @@
 using System;
 using System.Reflection;
 
-[assembly: System.Reflection.AssemblyCompanyAttribute("InputFlow.App")]
+[assembly: System.Reflection.AssemblyCompanyAttribute("InputFlow")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+434889e4a2f31051738bbdfb0791d9a43c7f7980")]
-[assembly: System.Reflection.AssemblyProductAttribute("InputFlow.App")]
-[assembly: System.Reflection.AssemblyTitleAttribute("InputFlow.App")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+16836d96e29bf376185ef05207bfbc26a4c56172")]
+[assembly: System.Reflection.AssemblyProductAttribute("InputFlow")]
+[assembly: System.Reflection.AssemblyTitleAttribute("InputFlow")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
 [assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
 [assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
