@@ -6,6 +6,8 @@ Current handoff for **InputFlow**.
 
 InputFlow is a Windows tray utility for smarter input-method switching.
 
+The product goal is broader than the original Dutch/Korean workflow. InputFlow should become a polished multilingual input workflow manager for bilingual users and linguistic power users who may use several Windows language profiles, keyboard layouts, and IMEs.
+
 The active project in this repo is only InputFlow. Ignore unrelated prior conversation topics.
 
 ## Confirmed Tech Stack
@@ -56,6 +58,15 @@ samples/inputflow.sample.json
 .github/workflows/build.yml
 ```
 
+## Current GitHub State
+
+As of the latest handoff update:
+
+- Documentation baseline was merged into `main` through PR #1.
+- Tray/diagnostics/RightAlt foundation was merged into `main` through PR #2.
+- PR #2 CI succeeded and produced the `InputFlow-win-x64` artifact.
+- The user manually validated the built app and reported that switching works.
+
 ## Current Confirmed Behavior
 
 The following workflow was tested during development and reported working:
@@ -65,6 +76,8 @@ English (Netherlands) / United States-International -> Korean Microsoft IME
 Korean Microsoft IME -> English (Netherlands) / United States-International
 Korean target enters Hangul/native mode safely
 ```
+
+The user also confirmed the optional RightAlt single-key trigger workflow works for their setup.
 
 The safe Hangul mode implementation uses explicit IME open/native conversion mode setting, not a blind Hangul-key toggle.
 
@@ -90,13 +103,13 @@ An early AutoHotkey direction was rejected as wrong for the project. InputFlow s
 
 Loading layouts by KLID caused wrong behavior. Specifically, Windows switched to plain English (United States) / US instead of English (Netherlands) / United States-International.
 
-The switch logic was changed to use the exact HKL Windows reported for installed/current profiles.
+The switch logic now prefers the exact HKL Windows reported for installed/current profiles and uses KLID matching to distinguish variants where available.
 
-### 3. Prefer Explicit Fallback Over Remembered Previous Layout For This Workflow
+### 3. Preserve The Known Working Fallback Workflow
 
 The initial `lastNonTarget` behavior could remember or return to the wrong English layout.
 
-The working config uses:
+The known working config uses:
 
 ```json
 "ReturnBehavior": "alwaysSpecificLayout",
@@ -109,11 +122,13 @@ with the fallback profile matching:
 "LanguageTag": "en-NL"
 ```
 
+This should remain supported, even as the product grows toward multiple workflow types.
+
 ### 4. Do Not Blindly Send The Hangul Toggle Key
 
 The Hangul key is a toggle. Sending it blindly can disable Hangul when Hangul was already active.
 
-The safe implementation tries setter-style Windows IME APIs instead.
+The safe implementation tries setter-style Windows IME APIs instead. Do not add a blind Hangul-key toggle as a default safe path.
 
 ### 5. Current Build Should Target The App Project Directly
 
@@ -126,6 +141,12 @@ dotnet build .\InputFlow.App\InputFlow.App.csproj -c Release
 ```
 
 GitHub Actions should also build the app project directly unless a proper solution file is verified.
+
+### 6. Single-Key Triggers Are Opt-In And Suppress The Key
+
+RightAlt support was added as an opt-in single-key trigger path through a low-level keyboard hook. When a configured single-key trigger fires, the key is consumed so it does not also perform its normal Windows/app behavior.
+
+This is useful for users who want to replace AltGr/RightAlt behavior with InputFlow, but it must stay explicit and visible because it changes normal typing behavior.
 
 ## Current Sample Configuration
 
@@ -174,17 +195,18 @@ The current expected sample config is approximately:
 }
 ```
 
+Single-key trigger configs are supported for keys such as `RightAlt`, but they should stay opt-in and documented as behavior-changing.
+
 ## Known Issues And Unfinished Work
 
 ### Build/Repo State
 
-Confirmed earlier:
+Validated recently:
 
-- The app built successfully.
-- The project was pushed to GitHub after fixing local Git/SSH issues.
-- A later cleanup pass added docs, sample config, GitHub Actions, `.gitignore`, output rename, and warning cleanup.
+- GitHub Actions build/publish succeeded for PR #2.
+- The user manually ran the artifact and confirmed the app worked for the core workflow.
 
-Verify before source changes:
+Verify before source changes when working locally:
 
 ```powershell
 git status
@@ -195,15 +217,17 @@ dotnet build .\InputFlow.App\InputFlow.App.csproj -c Release
 
 Known or likely limitations:
 
-- Tray menu is still minimal.
 - No settings UI exists yet.
-- Config reload may double-trigger from file watcher behavior.
-- Hotkey reload can temporarily report "hotkey in use" when duplicate reloads happen.
-- Exact TSF profile matching is not implemented.
+- Config schema v1 is still shaped around the original toggle/fallback model.
+- Multi-profile and multi-workflow behavior is not first-class yet.
+- Exact TSF/InputMethodTip profile matching is not implemented.
 - More complex multi-language setups are untested.
 - Elevated foreground apps may not accept input-method switching from non-elevated InputFlow.
+- Single-key triggers may not intercept keys for elevated foreground apps unless InputFlow is also elevated.
 - App icon/branding may still be placeholder/default.
 - Installer/release packaging is not implemented.
+- Update check/auto-update UX is not implemented.
+- Automated test coverage still needs to grow around config, matching, and workflow logic.
 
 ## Risks
 
@@ -223,45 +247,39 @@ A blind toggle fallback is risky and should not be used as the default safe mode
 
 Switching may fail when the foreground target is elevated and InputFlow is not. Do not hide such failures.
 
+### Product Shape Should Not Stay English/Korean-Specific
+
+Future changes should preserve the tested Dutch/Korean workflow while moving the model toward general multilingual workflows.
+
 ## Next Recommended Task
 
-Recommended next task: **tray menu + diagnostics stabilization**.
+Recommended next task: **Config Engine V2 And Workflow Model**.
 
-This should make the prototype easier to use and debug without changing the core switching logic.
+Reason: settings UI, installer polish, and auto-update all depend on stable product semantics. The next code slice should make configuration versioned, validated, migratable, and expressive enough for multilingual workflows before building UI on top.
 
 Suggested scope:
 
-1. Add tray menu actions:
-   - Open config
-   - Open log
-   - Reload config
-   - Pause/resume
-   - Exit
-2. Add startup diagnostics logging:
-   - app version/startup line
-   - config path
-   - log path
-   - installed input profiles found
-   - profile matching decisions for configured profiles
-3. Debounce config file watcher reloads to avoid duplicate reloads.
-4. Keep existing switching behavior unchanged.
+1. Introduce a v2 config schema with explicit workflows.
+2. Add migration from current v1 config.
+3. Add last-known-good config handling.
+4. Validate config before applying it.
+5. Keep the known working v1-style sample behavior available through migration or compatibility.
+6. Add tests for config parsing, migration, validation, hotkey parsing, and workflow state transitions.
+7. Update sample configs and README after behavior is proven.
 
 ## Definition Of Done For Next Task
 
 The next task is done when:
 
 - `dotnet build .\InputFlow.App\InputFlow.App.csproj -c Release` succeeds.
-- The tray menu contains at least:
-  - Open config
-  - Open log
-  - Reload config
-  - Pause/resume
-  - Exit
-- Config reload no longer double-triggers from one file save in normal use.
-- Startup log clearly lists installed input profiles and which configured profiles matched.
-- Existing manual workflow still works:
+- Existing user config either loads directly or migrates safely.
+- Invalid config is rejected with a clear message and does not overwrite the active working config.
+- Workflow behavior is represented in core types without Win32 dependencies.
+- Tests cover representative two-profile toggle and three-profile cycle behavior.
+- The known manual workflow still works:
   - English (Netherlands) / US-International -> Korean + Hangul/native
   - Korean -> English (Netherlands) / US-International
+  - Optional RightAlt single-key trigger remains opt-in and functional
 - No blind Hangul-toggle fallback is added to the default safe path.
 - Any remaining warnings or manual-test limitations are reported honestly.
 
@@ -269,12 +287,11 @@ The next task is done when:
 
 Do not:
 
-- Rewrite the switching engine.
+- Rewrite the Win32 switching engine unless a config/workflow abstraction requires a narrow adapter change.
 - Replace the tray app framework.
-- Add a settings UI yet.
+- Add a full settings UI yet.
 - Add an installer yet.
 - Add telemetry, analytics, cloud sync, accounts, or monetization.
-- Change the default hotkey unless the user asks.
-- Change the sample config away from the known working English/Korean setup unless preserving it as a sample.
+- Change the default sample away from the known working English/Korean setup unless preserving it as one sample among others.
 - Add a default blind Hangul-key toggle fallback.
 - Force the app to run as admin by default.
