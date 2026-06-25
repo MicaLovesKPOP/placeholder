@@ -104,10 +104,19 @@ namespace InputFlow.Core
                 return InputFlowConfigLoadResult.Invalid(new InputFlowConfig(), "Config file did not contain a valid JSON object.");
             }
 
+            NormalizeCollections(config);
+
             var errors = InputFlowConfigValidator.Validate(config);
             return errors.Count == 0
                 ? InputFlowConfigLoadResult.Valid(config)
                 : InputFlowConfigLoadResult.Invalid(config, errors);
+        }
+
+        private static void NormalizeCollections(InputFlowConfig config)
+        {
+            config.Hotkeys ??= new List<HotkeyConfig>();
+            config.Profiles ??= new List<ProfileDefinition>();
+            config.ExcludedProcesses ??= new List<string>();
         }
 
         private static JsonSerializerOptions CreateJsonOptions()
