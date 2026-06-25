@@ -69,6 +69,12 @@ namespace InputFlow.Core
                 var profile = profiles[i];
                 string label = $"Profiles[{i}]";
 
+                if (profile == null)
+                {
+                    errors.Add($"{label} must not be null.");
+                    continue;
+                }
+
                 if (string.IsNullOrWhiteSpace(profile.Id))
                 {
                     errors.Add($"{label}.Id is required.");
@@ -117,7 +123,7 @@ namespace InputFlow.Core
         private static void ValidateHotkeys(IReadOnlyList<HotkeyConfig> hotkeys, IReadOnlyList<ProfileDefinition> profiles, List<string> errors)
         {
             var profileIds = profiles
-                .Where(p => !string.IsNullOrWhiteSpace(p.Id))
+                .Where(p => p != null && !string.IsNullOrWhiteSpace(p.Id))
                 .Select(p => p.Id.Trim())
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -125,6 +131,12 @@ namespace InputFlow.Core
             {
                 var hotkey = hotkeys[i];
                 string label = $"Hotkeys[{i}]";
+
+                if (hotkey == null)
+                {
+                    errors.Add($"{label} must not be null.");
+                    continue;
+                }
 
                 if (string.IsNullOrWhiteSpace(hotkey.Keys))
                 {
