@@ -6,6 +6,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using InputFlow.Core;
+using InputFlow.Windows;
 
 namespace InputFlow.App
 {
@@ -95,6 +96,7 @@ namespace InputFlow.App
             private readonly NotifyIcon _notifyIcon;
             private readonly Control _uiDispatcher;
             private readonly System.Windows.Forms.Timer _configReloadTimer;
+            private readonly SingleKeyTriggerHook _singleKeyHook;
             private readonly Dictionary<int, (uint Modifiers, int Vk)> _registeredHotkeys = new();
             private IReadOnlyList<InputProfile> _installedProfiles;
             private int _nextHotkeyId = 1;
@@ -125,6 +127,7 @@ namespace InputFlow.App
                 _config = InputFlowConfig.Load(_configPath);
                 _installedProfiles = InputProfileManager.EnumerateInstalledProfiles();
                 _manager = new InputFlowManager(_installedProfiles, _config.ExcludedProcesses, _logger);
+                _singleKeyHook = new SingleKeyTriggerHook(_logger, OnSingleKeyTriggerPressed);
 
                 _hotkeyWindow = new HotkeyWindow();
                 _hotkeyWindow.HotkeyPressed += id => _manager.OnHotkeyPressed(id);
@@ -324,6 +327,19 @@ namespace InputFlow.App
                         continue;
                     }
                     int id = _nextHotkeyId++;
+                    if (IsSingleKeyHookTrigger(mods, vk))
+                    {
+                        if (!_singleKeyHook.Register(vk, id, hk.Keys))
+                        {
+                            _logger.Warning($"Failed to register single-key trigger '{hk.Keys}' (Name: {hk.Name}). It may already be registered.");
+                            continue;
+                        }
+
+                        RegisterManagerHotkey(id, target, fallback, hk);
+                        _logger.Info($"Registered single-key trigger '{hk.Keys}' for target '{hk.Target}' as ID {id}.");
+                        continue;
+                    }
+
                     bool ok = RegisterHotKey(_hotkeyWindow.Handle, id, mods, vk);
                     if (!ok)
                     {
@@ -331,10 +347,31 @@ namespace InputFlow.App
                         continue;
                     }
                     _registeredHotkeys[id] = (mods, vk);
-                    // Inform manager of this hotkey's state.
-                    var targetDefinition = _config.Profiles.FirstOrDefault(p => string.Equals(p.Id, hk.Target, StringComparison.OrdinalIgnoreCase));
-                    _manager.RegisterHotkey(id, target, fallback, hk.ReturnBehavior ?? "lastNonTarget", targetDefinition?.EnterMode);
+                    RegisterManagerHotkey(id, target, fallback, hk);
                     _logger.Info($"Registered hotkey '{hk.Keys}' for target '{hk.Target}' as ID {id}.");
+                }
+            }
+
+            private void RegisterManagerHotkey(int id, InputProfile target, InputProfile? fallback, HotkeyConfig hk)
+            {
+                var targetDefinition = _config.Profiles.FirstOrDefault(p => string.Equals(p.Id, hk.Target, StringComparison.OrdinalIgnoreCase));
+                _manager.RegisterHotkey(id, target, fallback, hk.ReturnBehavior ?? "lastNonTarget", targetDefinition?.EnterMode);
+            }
+
+            private void OnSingleKeyTriggerPressed(int id)
+            {
+                if (_uiDispatcher.IsDisposed || !_uiDispatcher.IsHandleCreated)
+                {
+                    return;
+                }
+
+                try
+                {
+                    _uiDispatcher.BeginInvoke((Action)(() => _manager.OnHotkeyPressed(id)));
+                }
+                catch (InvalidOperationException)
+                {
+                    // The app is probably exiting. Ignore late hook callbacks.
                 }
             }
 
@@ -349,6 +386,7 @@ namespace InputFlow.App
                     UnregisterHotKey(_hotkeyWindow.Handle, kvp.Key);
                 }
                 _registeredHotkeys.Clear();
+                _singleKeyHook.Clear();
             }
 
             private void LogStartupDiagnostics()
@@ -449,6 +487,7 @@ namespace InputFlow.App
                     _configWatcher.Dispose();
                     _configWatcher = null;
                 }
+                _singleKeyHook.Dispose();
                 _notifyIcon.Visible = false;
                 _notifyIcon.Dispose();
                 _hotkeyWindow.Dispose();
@@ -465,6 +504,7 @@ namespace InputFlow.App
                     UnregisterAllHotkeys();
                     _configReloadTimer.Dispose();
                     _configWatcher?.Dispose();
+                    _singleKeyHook.Dispose();
                     _notifyIcon.Dispose();
                     _hotkeyWindow.Dispose();
                     _uiDispatcher.Dispose();
@@ -507,6 +547,124 @@ namespace InputFlow.App
             }
         }
 
+        private sealed class SingleKeyTriggerHook : IDisposable
+        {
+            private readonly ILogger _logger;
+            private readonly Action<int> _triggerPressed;
+            private readonly InputApis.LowLevelKeyboardProc _hookProc;
+            private readonly Dictionary<int, int> _hotkeysByVk = new();
+            private readonly HashSet<int> _pressedKeys = new();
+            private IntPtr _hookHandle;
+            private bool _disposed;
+
+            public SingleKeyTriggerHook(ILogger logger, Action<int> triggerPressed)
+            {
+                _logger = logger;
+                _triggerPressed = triggerPressed;
+                _hookProc = HookCallback;
+            }
+
+            public bool Register(int vk, int id, string displayName)
+            {
+                if (_disposed)
+                {
+                    return false;
+                }
+
+                if (!_hotkeysByVk.TryAdd(vk, id))
+                {
+                    return false;
+                }
+
+                if (!EnsureInstalled())
+                {
+                    _hotkeysByVk.Remove(vk);
+                    return false;
+                }
+
+                _logger.Warning($"Single-key trigger '{displayName}' is active and will suppress that key while InputFlow is running.");
+                return true;
+            }
+
+            public void Clear()
+            {
+                _hotkeysByVk.Clear();
+                _pressedKeys.Clear();
+            }
+
+            private bool EnsureInstalled()
+            {
+                if (_hookHandle != IntPtr.Zero)
+                {
+                    return true;
+                }
+
+                using var process = Process.GetCurrentProcess();
+                using ProcessModule? module = process.MainModule;
+                IntPtr moduleHandle = module != null ? InputApis.GetModuleHandle(module.ModuleName) : IntPtr.Zero;
+                _hookHandle = InputApis.SetWindowsHookEx(InputApis.WH_KEYBOARD_LL, _hookProc, moduleHandle, 0);
+
+                if (_hookHandle == IntPtr.Zero)
+                {
+                    int error = Marshal.GetLastWin32Error();
+                    _logger.Warning($"Failed to install single-key trigger hook. Win32 error={error}.");
+                    return false;
+                }
+
+                _logger.Info("Installed single-key trigger hook.");
+                return true;
+            }
+
+            private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
+            {
+                if (nCode < 0)
+                {
+                    return InputApis.CallNextHookEx(_hookHandle, nCode, wParam, lParam);
+                }
+
+                var data = Marshal.PtrToStructure<InputApis.KBDLLHOOKSTRUCT>(lParam);
+                int vk = data.vkCode;
+                if (!_hotkeysByVk.TryGetValue(vk, out int id))
+                {
+                    return InputApis.CallNextHookEx(_hookHandle, nCode, wParam, lParam);
+                }
+
+                int message = wParam.ToInt32();
+                if (message == InputApis.WM_KEYDOWN || message == InputApis.WM_SYSKEYDOWN)
+                {
+                    if (_pressedKeys.Add(vk))
+                    {
+                        _triggerPressed(id);
+                    }
+                    return (IntPtr)1;
+                }
+
+                if (message == InputApis.WM_KEYUP || message == InputApis.WM_SYSKEYUP)
+                {
+                    _pressedKeys.Remove(vk);
+                    return (IntPtr)1;
+                }
+
+                return InputApis.CallNextHookEx(_hookHandle, nCode, wParam, lParam);
+            }
+
+            public void Dispose()
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                _disposed = true;
+                Clear();
+                if (_hookHandle != IntPtr.Zero)
+                {
+                    InputApis.UnhookWindowsHookEx(_hookHandle);
+                    _hookHandle = IntPtr.Zero;
+                }
+            }
+        }
+
         /// <summary>
         /// Parses a hotkey string into modifier flags and a virtual key code. Supports
         /// combinations like "Ctrl+Shift+Space" or single keys like "F13".
@@ -529,9 +687,9 @@ namespace InputFlow.App
                     case "WIN": modifiers |= MOD_WIN; break;
                     default:
                         // Assume last token is the virtual key.
-                        if (Enum.TryParse(typeof(Keys), token, true, out var keyObj))
+                        if (TryParseVirtualKey(token, out int parsedVk))
                         {
-                            vk = (int)keyObj;
+                            vk = parsedVk;
                         }
                         else
                         {
@@ -541,6 +699,62 @@ namespace InputFlow.App
                 }
             }
             return vk != 0;
+        }
+
+        private static bool TryParseVirtualKey(string token, out int vk)
+        {
+            switch (token.Replace(" ", string.Empty).Replace("-", string.Empty).ToUpperInvariant())
+            {
+                case "RIGHTALT":
+                case "RALT":
+                case "ALTGR":
+                    vk = (int)Keys.RMenu;
+                    return true;
+                case "LEFTALT":
+                case "LALT":
+                    vk = (int)Keys.LMenu;
+                    return true;
+                case "RIGHTCTRL":
+                case "RCTRL":
+                    vk = (int)Keys.RControlKey;
+                    return true;
+                case "LEFTCTRL":
+                case "LCTRL":
+                    vk = (int)Keys.LControlKey;
+                    return true;
+                case "RIGHTSHIFT":
+                case "RSHIFT":
+                    vk = (int)Keys.RShiftKey;
+                    return true;
+                case "LEFTSHIFT":
+                case "LSHIFT":
+                    vk = (int)Keys.LShiftKey;
+                    return true;
+            }
+
+            if (Enum.TryParse(typeof(Keys), token, true, out var keyObj))
+            {
+                vk = (int)keyObj;
+                return true;
+            }
+
+            vk = 0;
+            return false;
+        }
+
+        private static bool IsSingleKeyHookTrigger(uint modifiers, int vk)
+        {
+            if (modifiers != 0)
+            {
+                return false;
+            }
+
+            return vk == (int)Keys.RMenu ||
+                vk == (int)Keys.LMenu ||
+                vk == (int)Keys.RControlKey ||
+                vk == (int)Keys.LControlKey ||
+                vk == (int)Keys.RShiftKey ||
+                vk == (int)Keys.LShiftKey;
         }
 
         // Modifier constants used by RegisterHotKey.
