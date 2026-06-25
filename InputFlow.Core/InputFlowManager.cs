@@ -8,19 +8,19 @@ namespace InputFlow.Core
 {
     /// <summary>
     /// Coordinates the toggling logic, profile selection, verification, and exclusion
-    /// handling for InputFlow.  This class encapsulates the state machine described in
-    /// the design document.  It supports multiple hotkeys, each of which can have its
+    /// handling for InputFlow. This class encapsulates the state machine described in
+    /// the design document. It supports multiple hotkeys, each of which can have its
     /// own target profile, return behaviour and fallback profile.
     /// </summary>
     public class InputFlowManager
     {
-        private readonly IReadOnlyList<InputProfile> _installedProfiles;
+        private IReadOnlyList<InputProfile> _installedProfiles;
         private readonly ILogger _logger;
         private readonly Dictionary<int, HotkeyState> _hotkeyStates = new();
-        private readonly HashSet<string> _excludedProcessNames;
+        private HashSet<string> _excludedProcessNames;
 
         /// <summary>
-        /// Indicates whether InputFlow is currently paused.  When paused, toggle
+        /// Indicates whether InputFlow is currently paused. When paused, toggle
         /// requests are ignored.
         /// </summary>
         public bool IsPaused { get; private set; }
@@ -33,14 +33,32 @@ namespace InputFlow.Core
         /// <param name="logger">Logger for diagnostics.</param>
         public InputFlowManager(IReadOnlyList<InputProfile> installedProfiles, IEnumerable<string> excludedProcesses, ILogger logger)
         {
-            _installedProfiles = installedProfiles;
             _logger = logger;
+            _installedProfiles = Array.Empty<InputProfile>();
+            _excludedProcessNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            UpdateRuntimeState(installedProfiles, excludedProcesses);
+        }
+
+        /// <summary>
+        /// Updates runtime state that can change after a config reload.
+        /// </summary>
+        public void UpdateRuntimeState(IReadOnlyList<InputProfile> installedProfiles, IEnumerable<string> excludedProcesses)
+        {
+            _installedProfiles = installedProfiles ?? Array.Empty<InputProfile>();
             _excludedProcessNames = new HashSet<string>(excludedProcesses ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
         }
 
         /// <summary>
-        /// Registers a hotkey with the manager.  The <paramref name="id"/> must match the
-        /// identifier used when registering the hotkey with Windows.  The specified
+        /// Clears all registered hotkey state before a config reload registers the new set.
+        /// </summary>
+        public void ClearHotkeys()
+        {
+            _hotkeyStates.Clear();
+        }
+
+        /// <summary>
+        /// Registers a hotkey with the manager. The <paramref name="id"/> must match the
+        /// identifier used when registering the hotkey with Windows. The specified
         /// <paramref name="state"/> must contain a valid target profile; fallback may be null.
         /// </summary>
         public void RegisterHotkey(int id, InputProfile target, InputProfile? fallback, string returnBehavior, string? enterMode = null)
@@ -55,7 +73,7 @@ namespace InputFlow.Core
         }
 
         /// <summary>
-        /// Called when a registered hotkey is pressed.  Determines whether to switch
+        /// Called when a registered hotkey is pressed. Determines whether to switch
         /// into or out of the target profile based on the current active profile.
         /// </summary>
         /// <param name="hotkeyId">Identifier of the pressed hotkey.</param>
@@ -67,7 +85,7 @@ namespace InputFlow.Core
                 return;
             }
 
-            // Determine the foreground process.  If excluded, ignore.
+            // Determine the foreground process. If excluded, ignore.
             string foregroundProcess = GetForegroundProcessName();
             if (!string.IsNullOrEmpty(foregroundProcess) && _excludedProcessNames.Contains(foregroundProcess))
             {
@@ -85,7 +103,7 @@ namespace InputFlow.Core
 
             if (ProfilesEqual(current, state.Target))
             {
-                // We are currently in the target.  Determine the destination based on return behaviour.
+                // We are currently in the target. Determine the destination based on return behaviour.
                 InputProfile? dest = null;
                 switch (state.ReturnBehavior)
                 {
@@ -96,7 +114,7 @@ namespace InputFlow.Core
                         dest = state.Fallback;
                         break;
                     case ReturnBehavior.ManualOnly:
-                        // In manualOnly, we never automatically switch back.  Do nothing.
+                        // In manualOnly, we never automatically switch back. Do nothing.
                         _logger.Info("ManualOnly return behaviour: not switching back.");
                         return;
                 }
@@ -134,8 +152,8 @@ namespace InputFlow.Core
         }
 
         /// <summary>
-        /// Sets the paused state.  When paused, hotkey presses are ignored except for
-        /// a resume/disabled override.  Logging is produced to indicate the
+        /// Sets the paused state. When paused, hotkey presses are ignored except for
+        /// a resume/disabled override. Logging is produced to indicate the
         /// transition.
         /// </summary>
         /// <param name="paused">True to pause; false to resume.</param>
@@ -150,7 +168,7 @@ namespace InputFlow.Core
 
         /// <summary>
         /// Determines whether two profiles represent the same input method by comparing
-        /// their KLIDs.  If either profile is null, returns false.
+        /// their KLIDs. If either profile is null, returns false.
         /// </summary>
         private static bool ProfilesEqual(InputProfile? a, InputProfile? b)
         {
@@ -160,7 +178,7 @@ namespace InputFlow.Core
 
         /// <summary>
         /// Attempts to switch to the specified profile using the Win32 API and
-        /// verifies the switch by reading back the current profile.  Returns
+        /// verifies the switch by reading back the current profile. Returns
         /// true if the switch succeeded; false otherwise.
         /// </summary>
         private bool SwitchTo(InputProfile profile)
@@ -248,8 +266,8 @@ namespace InputFlow.Core
         }
 
         /// <summary>
-        /// Retrieves the name of the foreground process.  Returns empty string if
-        /// retrieval fails.  Only the executable name (without path) is
+        /// Retrieves the name of the foreground process. Returns empty string if
+        /// retrieval fails. Only the executable name (without path) is
         /// returned.
         /// </summary>
         private static string GetForegroundProcessName()
@@ -281,8 +299,8 @@ namespace InputFlow.Core
         }
 
         /// <summary>
-        /// Enumeration of supported return behaviours.  More behaviours can be added
-        /// in future versions.  See design document section 13 for semantics.
+        /// Enumeration of supported return behaviours. More behaviours can be added
+        /// in future versions. See design document section 13 for semantics.
         /// </summary>
         private enum ReturnBehavior
         {
@@ -292,7 +310,7 @@ namespace InputFlow.Core
         }
 
         /// <summary>
-        /// Internal state for each hotkey.  Stores the target profile, fallback,
+        /// Internal state for each hotkey. Stores the target profile, fallback,
         /// previous non-target and return behaviour.
         /// </summary>
         private class HotkeyState
