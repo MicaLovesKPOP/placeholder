@@ -10,6 +10,7 @@ var tests = new (string Name, Action Test)[]
     ("ProfilesRequireMatchCriteria", ProfilesRequireMatchCriteria),
     ("MalformedJsonReturnsLoadErrors", MalformedJsonReturnsLoadErrors),
     ("LegacyLoadFallsBackToDefaultsOnInvalidConfig", LegacyLoadFallsBackToDefaultsOnInvalidConfig),
+    ("NullCollectionsAreNormalized", NullCollectionsAreNormalized),
     ("UnsupportedWorkflowModeIsRejected", UnsupportedWorkflowModeIsRejected)
 };
 
@@ -96,6 +97,24 @@ static void LegacyLoadFallsBackToDefaultsOnInvalidConfig()
     }
 }
 
+static void NullCollectionsAreNormalized()
+{
+    string path = WriteTempConfig("{ \"Version\": 1, \"Hotkeys\": null, \"Profiles\": null, \"ExcludedProcesses\": null }");
+    try
+    {
+        var result = InputFlowConfig.LoadDetailed(path);
+
+        AssertTrue(result.Success, string.Join(Environment.NewLine, result.Errors));
+        AssertEqual(0, result.Config.Hotkeys.Count, "Hotkeys should be normalized.");
+        AssertEqual(0, result.Config.Profiles.Count, "Profiles should be normalized.");
+        AssertEqual(0, result.Config.ExcludedProcesses.Count, "Excluded processes should be normalized.");
+    }
+    finally
+    {
+        File.Delete(path);
+    }
+}
+
 static void UnsupportedWorkflowModeIsRejected()
 {
     var config = CreateKnownWorkingConfig();
@@ -162,6 +181,14 @@ static void AssertEqual<T>(T expected, T actual, string message)
 static void AssertFalse(bool value, string message)
 {
     if (value)
+    {
+        throw new InvalidOperationException(message);
+    }
+}
+
+static void AssertTrue(bool value, string message)
+{
+    if (!value)
     {
         throw new InvalidOperationException(message);
     }
