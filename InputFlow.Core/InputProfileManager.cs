@@ -11,6 +11,8 @@ namespace InputFlow.Core
     /// </summary>
     public static class InputProfileManager
     {
+        private const string UsInternationalKlid = "00020409";
+
         /// <summary>
         /// Enumerates the installed keyboard layouts and IMEs for the system.
         /// This uses <see cref="InputApis.GetKeyboardLayoutList"/> and creates
@@ -26,7 +28,7 @@ namespace InputFlow.Core
             {
                 // Derive an 8-character KLID from the HKL.
                 string klid = ((ulong)hkl.ToInt64() & 0xFFFFFFFF).ToString("X8");
-                // Friendly name is unknown; use KLID as placeholder.
+                // Friendly name is unknown; use the LANGID display name as a placeholder.
                 string friendlyName = GetDefaultLanguageName(hkl);
                 bool isIme = IsImeLayout(hkl);
                 profiles.Add(new InputProfile(hkl, klid, friendlyName, isIme));
@@ -55,8 +57,8 @@ namespace InputFlow.Core
 
         /// <summary>
         /// Rudimentary detection of whether the given HKL corresponds to an IME.
-        /// This method checks the high word of the HKL for zero; if non‑zero,
-        /// it indicates an IME handle.  More accurate detection requires TSF APIs.
+        /// This method checks the high word of the HKL for zero; if non-zero,
+        /// it indicates an IME handle. More accurate detection requires TSF APIs.
         /// </summary>
         private static bool IsImeLayout(IntPtr hkl)
         {
@@ -84,11 +86,11 @@ namespace InputFlow.Core
         }
 
         /// <summary>
-        /// Matches installed profiles against a list of profile definitions.  Each
-        /// definition contains matching criteria such as language tag or substrings
-        /// of the friendly name.  Returns a dictionary mapping profile Ids to
-        /// matched <see cref="InputProfile"/> instances.  Definitions that
-        /// cannot be matched are omitted.  This helper does not throw when
+        /// Matches installed profiles against a list of profile definitions. Each
+        /// definition contains matching criteria such as language tag, KLID or
+        /// substrings of the friendly name. Returns a dictionary mapping profile
+        /// Ids to matched <see cref="InputProfile"/> instances. Definitions that
+        /// cannot be matched are omitted. This helper does not throw when
         /// matching fails; the caller should handle missing definitions.
         /// </summary>
         /// <param name="installed">Installed profiles enumerated by <see cref="EnumerateInstalledProfiles"/>.</param>
@@ -109,54 +111,111 @@ namespace InputFlow.Core
 
         /// <summary>
         /// Attempts to match a single profile definition to an installed profile.
-        /// The matching rules are as follows:
-        /// - If <see cref="ProfileMatch.LanguageTag"/> is specified, the LANGID of
-        ///   the installed profile must correspond to that culture (case-insensitive).
-        /// - If <see cref="ProfileMatch.LayoutNameContains"/> is specified, the
-        ///   friendly name of the installed profile must contain the specified
-        ///   substring (case-insensitive).
-        /// - <see cref="ProfileMatch.ProfileNameContains"/> is currently ignored
-        ///   because the enumerator does not expose IME display names.
-        /// All specified criteria must be satisfied for a match.
+        /// All configured criteria are matched case-insensitively. A second-pass
+        /// compatibility fallback maps the known English (Netherlands) /
+        /// US-International workflow to KLID 00020409 when Windows exposes the
+        /// layout under the en-US LANGID.
         /// </summary>
         private static InputProfile? MatchProfile(IReadOnlyList<InputProfile> installed, ProfileDefinition def)
         {
+            var criteria = def.Match ?? new ProfileMatch();
+
             foreach (var profile in installed)
             {
-                bool match = true;
-                var m = def.Match;
-                // Match language tag if specified
-                if (!string.IsNullOrEmpty(m.LanguageTag))
-                {
-                    try
-                    {
-                        // Derive culture name from LANGID.  CultureName might be like "en-US".
-                        var culture = new CultureInfo((int)profile.LangId);
-                        if (!string.Equals(culture.Name, m.LanguageTag, StringComparison.OrdinalIgnoreCase))
-                        {
-                            match = false;
-                        }
-                    }
-                    catch
-                    {
-                        match = false;
-                    }
-                }
-                // Match layout name substring if specified
-                if (match && !string.IsNullOrEmpty(m.LayoutNameContains))
-                {
-                    if (profile.FriendlyName.IndexOf(m.LayoutNameContains, StringComparison.OrdinalIgnoreCase) < 0)
-                    {
-                        match = false;
-                    }
-                }
-                // profileNameContains is not matched due to enumerator limitations.
-                if (match)
+                if (MatchesCriteria(profile, criteria))
                 {
                     return profile;
                 }
             }
+
+            return MatchEnglishNetherlandsUsInternationalCompatibility(installed, criteria);
+        }
+
+        private static bool MatchesCriteria(InputProfile profile, ProfileMatch criteria)
+        {
+            if (!string.IsNullOrEmpty(criteria.KLID))
+            {
+                if (!string.Equals(profile.KLID, NormalizeKlid(criteria.KLID), StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(criteria.LanguageTag))
+            {
+                try
+                {
+                    // Derive culture name from LANGID. CultureName might be like "en-US".
+                    var culture = new CultureInfo((int)profile.LangId);
+                    if (!string.Equals(culture.Name, criteria.LanguageTag, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            if (!ContainsProfileText(profile, criteria.LayoutNameContains))
+            {
+                return false;
+            }
+
+            if (!ContainsProfileText(profile, criteria.ProfileNameContains))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool ContainsProfileText(InputProfile profile, string? expected)
+        {
+            if (string.IsNullOrEmpty(expected))
+            {
+                return true;
+            }
+
+            return profile.FriendlyName.IndexOf(expected, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                profile.KLID.IndexOf(expected, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static InputProfile? MatchEnglishNetherlandsUsInternationalCompatibility(IReadOnlyList<InputProfile> installed, ProfileMatch criteria)
+        {
+            if (!string.Equals(criteria.LanguageTag, "en-NL", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            if (!string.IsNullOrEmpty(criteria.KLID) ||
+                !string.IsNullOrEmpty(criteria.LayoutNameContains) ||
+                !string.IsNullOrEmpty(criteria.ProfileNameContains))
+            {
+                return null;
+            }
+
+            foreach (var profile in installed)
+            {
+                if (string.Equals(profile.KLID, UsInternationalKlid, StringComparison.OrdinalIgnoreCase))
+                {
+                    return profile;
+                }
+            }
+
             return null;
+        }
+
+        private static string NormalizeKlid(string klid)
+        {
+            string value = klid.Trim();
+            if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                value = value[2..];
+            }
+
+            return value.Length < 8 ? value.PadLeft(8, '0').ToUpperInvariant() : value.ToUpperInvariant();
         }
     }
 }

@@ -21,7 +21,7 @@ namespace InputFlow.Windows
         /// <summary>
         /// Retrieves the name of the active keyboard layout.
         /// </summary>
-        /// <param name="pwszKLID">A pointer to a buffer that receives the 8‑character KLID string.</param>
+        /// <param name="pwszKLID">A pointer to a buffer that receives the 8-character KLID string.</param>
         /// <returns>True if successful; otherwise false.</returns>
         [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         public static extern bool GetKeyboardLayoutName(StringBuilder pwszKLID);
@@ -86,13 +86,11 @@ namespace InputFlow.Windows
         [DllImport("user32.dll", SetLastError = true)]
         public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
-
-
-
         /// <summary>
         /// Retrieves a handle to the foreground window.
         /// </summary>
-        [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetForegroundWindow();
 
         [StructLayout(LayoutKind.Sequential)]
         public struct RECT
@@ -120,11 +118,11 @@ namespace InputFlow.Windows
         [DllImport("user32.dll", SetLastError = true)]
         public static extern bool GetGUIThreadInfo(uint idThread, ref GUITHREADINFO lpgui);
 
-
         /// <summary>
         /// Retrieves the identifier of the thread that created the specified window and the identifier of the process that created the window.
         /// </summary>
-        [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+        [DllImport("user32.dll")]
+        public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
         /// <summary>
         /// Obtains the full path of the executable file of the specified process.
@@ -140,5 +138,35 @@ namespace InputFlow.Windows
 
         public const uint PROCESS_QUERY_INFORMATION = 0x0400;
         public const uint PROCESS_VM_READ = 0x0010;
+
+        public const int WH_KEYBOARD_LL = 13;
+        public const int WM_KEYDOWN = 0x0100;
+        public const int WM_KEYUP = 0x0101;
+        public const int WM_SYSKEYDOWN = 0x0104;
+        public const int WM_SYSKEYUP = 0x0105;
+
+        public delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct KBDLLHOOKSTRUCT
+        {
+            public int vkCode;
+            public int scanCode;
+            public int flags;
+            public int time;
+            public UIntPtr dwExtraInfo;
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern bool UnhookWindowsHookEx(IntPtr hhk);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        public static extern IntPtr GetModuleHandle(string? lpModuleName);
     }
 }

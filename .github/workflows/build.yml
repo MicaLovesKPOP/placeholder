@@ -24,3 +24,12 @@ jobs:
 
       - name: Build
         run: dotnet build .\InputFlow.App\InputFlow.App.csproj -c Release --no-restore
+
+      - name: Publish
+        run: dotnet publish .\InputFlow.App\InputFlow.App.csproj -c Release -r win-x64 --self-contained false -o .\publish\InputFlow-win-x64
+
+      - name: Upload publish artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: InputFlow-win-x64
+          path: .\publish\InputFlow-win-x64\
