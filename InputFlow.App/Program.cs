@@ -26,15 +26,10 @@ namespace InputFlow.App
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // Determine config and log paths relative to the executable. In
-            // portable mode the config sits next to the executable; an
-            // installed version could place it elsewhere. For now we keep
-            // everything in the app directory.
             string appDir = AppDomain.CurrentDomain.BaseDirectory;
             string configPath = Path.Combine(appDir, "inputflow.json");
             string logPath = Path.Combine(appDir, "inputflow.log");
 
-            // Ensure a config file exists. Create a simple default if not.
             if (!File.Exists(configPath))
             {
                 var defaultConfig = new InputFlowConfig
@@ -79,16 +74,10 @@ namespace InputFlow.App
                 File.WriteAllText(configPath, System.Text.Json.JsonSerializer.Serialize(defaultConfig, opts));
             }
 
-            // Create the application context which owns the manager and tray icon.
             using var context = new TrayApplicationContext(configPath, logPath);
             Application.Run(context);
         }
 
-        /// <summary>
-        /// Custom application context that owns the lifetime of the tray icon,
-        /// hotkey window, configuration and manager. Implements config
-        /// reloading and pause/resume.
-        /// </summary>
         private sealed class TrayApplicationContext : ApplicationContext
         {
             private const int ConfigReloadDebounceMilliseconds = 500;
@@ -129,7 +118,6 @@ namespace InputFlow.App
                     ReloadConfig("file watcher");
                 };
 
-                // Load config and installed profiles, then initialise manager.
                 var initialLoad = InputFlowConfig.LoadDetailed(_configPath);
                 _config = initialLoad.Success ? initialLoad.Config : new InputFlowConfig();
                 _installedProfiles = InputProfileManager.EnumerateInstalledProfiles();
@@ -139,7 +127,6 @@ namespace InputFlow.App
                 _hotkeyWindow = new HotkeyWindow();
                 _hotkeyWindow.HotkeyPressed += id => _manager.OnHotkeyPressed(id);
 
-                // Set up tray icon and menu.
                 _notifyIcon = new NotifyIcon
                 {
                     Text = "InputFlow",
@@ -155,21 +142,16 @@ namespace InputFlow.App
                     _logger.Warning("Startup config was invalid; running with built-in defaults until a valid config is saved or reloaded.");
                 }
 
-                // Register initial hotkeys.
                 RegisterHotkeys();
-
-                // Watch for config changes.
                 SetupConfigWatcher();
             }
 
-            /// <summary>
-            /// Builds the context menu for the tray icon.
-            /// </summary>
             private ContextMenuStrip BuildContextMenu()
             {
                 var menu = new ContextMenuStrip();
                 menu.Items.Add(new ToolStripMenuItem("Open Config", null, (_, _) => OpenPath(_configPath, "config file")));
                 menu.Items.Add(new ToolStripMenuItem("Open Log", null, (_, _) => OpenPath(_logPath, "log file")));
+                menu.Items.Add(new ToolStripMenuItem("Copy Diagnostics", null, (_, _) => CopyDiagnostics()));
                 menu.Items.Add(new ToolStripSeparator());
                 menu.Items.Add(new ToolStripMenuItem("Reload Config", null, (_, _) => ReloadConfig("tray menu")));
                 _pauseMenuItem = new ToolStripMenuItem("Pause", null, (_, _) => TogglePause());
@@ -201,6 +183,19 @@ namespace InputFlow.App
                 }
             }
 
+            private void CopyDiagnostics()
+            {
+                try
+                {
+                    Clipboard.SetText(InputFlowDiagnostics.BuildReport(_config, _installedProfiles, _configPath, _logPath));
+                    _logger.Info("Copied diagnostics to clipboard.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warning($"Cannot copy diagnostics to clipboard: {ex.Message}");
+                }
+            }
+
             private void TogglePause()
             {
                 bool newState = !_manager.IsPaused;
@@ -217,12 +212,6 @@ namespace InputFlow.App
                 }
             }
 
-            /// <summary>
-            /// Loads and applies the configuration from disk. Re-registers
-            /// hotkeys and updates the tray icon visibility. Called when the
-            /// user chooses Reload Config or when the file system watcher
-            /// detects a change.
-            /// </summary>
             private void ReloadConfig(string reason)
             {
                 try
@@ -267,12 +256,6 @@ namespace InputFlow.App
                 }
             }
 
-            /// <summary>
-            /// Sets up a file system watcher to monitor the configuration file.
-            /// When the file is changed or renamed, the configuration is
-            /// reloaded. If the watcher cannot be created, no exception is
-            /// thrown; the user can still reload manually via the menu.
-            /// </summary>
             private void SetupConfigWatcher()
             {
                 try
@@ -318,12 +301,6 @@ namespace InputFlow.App
                 _configReloadTimer.Start();
             }
 
-            /// <summary>
-            /// Registers workflow triggers based on the current configuration. Each trigger
-            /// in the configuration is parsed and registered with Windows. If
-            /// parsing or registration fails, a warning is logged and the
-            /// offending trigger is skipped.
-            /// </summary>
             private void RegisterHotkeys()
             {
                 _nextHotkeyId = 1;
@@ -499,10 +476,6 @@ namespace InputFlow.App
                 }
             }
 
-            /// <summary>
-            /// Unregisters all registered hotkeys. Called when reloading
-            /// configuration or exiting.
-            /// </summary>
             private void UnregisterAllHotkeys()
             {
                 foreach (var kvp in _registeredHotkeys)
@@ -531,78 +504,33 @@ namespace InputFlow.App
                 _logger.Info($"Installed input profiles found: {installed.Count}");
                 foreach (var profile in installed)
                 {
-                    _logger.Info($"Installed profile: {FormatProfile(profile)}");
+                    _logger.Info($"Installed profile: {InputProfileManager.FormatProfile(profile)}");
                 }
             }
 
             private void LogProfileMatches(IReadOnlyList<InputProfile> installed, IEnumerable<ProfileDefinition> definitions)
             {
-                var matched = InputProfileManager.MatchProfiles(installed, definitions);
-                foreach (var definition in definitions)
+                var reports = InputProfileManager.EvaluateProfileMatches(installed, definitions);
+                foreach (var report in reports)
                 {
-                    if (matched.TryGetValue(definition.Id, out var profile))
+                    if (report.MatchedProfile != null)
                     {
-                        _logger.Info($"Configured profile '{definition.Id}' matched {FormatProfile(profile)} using {FormatMatchCriteria(definition.Match)}.");
+                        _logger.Info($"Configured profile '{report.ProfileId}' matched {InputProfileManager.FormatProfile(report.MatchedProfile)} using {InputFlowDiagnostics.FormatMatchCriteria(report.Criteria)}. {report.Summary}");
                     }
                     else
                     {
-                        _logger.Warning($"Configured profile '{definition.Id}' did not match any installed profile using {FormatMatchCriteria(definition.Match)}.");
+                        _logger.Warning($"Configured profile '{report.ProfileId}' did not match any installed profile using {InputFlowDiagnostics.FormatMatchCriteria(report.Criteria)}. {report.Summary}");
+                    }
+
+                    foreach (var candidate in report.Candidates)
+                    {
+                        _logger.Info($"Profile match candidate for '{report.ProfileId}': {(candidate.IsMatch ? "match" : "no match")} {InputProfileManager.FormatProfile(candidate.Profile)} - {candidate.Reason}");
                     }
                 }
             }
 
-            private static string FormatProfile(InputProfile profile)
-            {
-                return $"{profile.FriendlyName} KLID={profile.KLID} HKL=0x{profile.HKL.ToInt64():X8} Lang={GetCultureName(profile)} IsIme={profile.IsIme}";
-            }
-
-            private static string GetCultureName(InputProfile profile)
-            {
-                try
-                {
-                    return new CultureInfo((int)profile.LangId).Name;
-                }
-                catch
-                {
-                    return profile.LangId.ToString("X4");
-                }
-            }
-
-            private static string FormatMatchCriteria(ProfileMatch? match)
-            {
-                if (match == null)
-                {
-                    return "no criteria";
-                }
-
-                var parts = new List<string>();
-                if (!string.IsNullOrWhiteSpace(match.LanguageTag))
-                {
-                    parts.Add($"LanguageTag={match.LanguageTag}");
-                }
-                if (!string.IsNullOrWhiteSpace(match.KLID))
-                {
-                    parts.Add($"KLID={match.KLID}");
-                }
-                if (!string.IsNullOrWhiteSpace(match.LayoutNameContains))
-                {
-                    parts.Add($"LayoutNameContains={match.LayoutNameContains}");
-                }
-                if (!string.IsNullOrWhiteSpace(match.ProfileNameContains))
-                {
-                    parts.Add($"ProfileNameContains={match.ProfileNameContains}");
-                }
-
-                return parts.Count == 0 ? "no criteria" : string.Join(", ", parts);
-            }
-
-            /// <summary>
-            /// Exits the application. Ensures that hotkeys and other resources
-            /// are cleaned up.
-            /// </summary>
             private new void ExitThread()
             {
-                // Clean up hotkeys and watchers.
                 UnregisterAllHotkeys();
                 _configReloadTimer.Stop();
                 if (_configWatcher != null)
@@ -620,7 +548,6 @@ namespace InputFlow.App
                 Application.Exit();
             }
 
-            /// <inheritdoc/>
             protected override void Dispose(bool disposing)
             {
                 if (disposing)
@@ -637,11 +564,6 @@ namespace InputFlow.App
             }
         }
 
-        /// <summary>
-        /// Hidden window used to receive WM_HOTKEY messages. The window is
-        /// message-only and never shown. When a hotkey is pressed, the
-        /// HotkeyPressed event is raised with the hotkey identifier.
-        /// </summary>
         private class HotkeyWindow : NativeWindow, IDisposable
         {
             public event Action<int>? HotkeyPressed;
@@ -650,7 +572,6 @@ namespace InputFlow.App
 
             public HotkeyWindow()
             {
-                // Create a message-only window.
                 var cp = new CreateParams { Caption = "InputFlowHotkeyWindow" };
                 CreateHandle(cp);
             }
@@ -789,11 +710,6 @@ namespace InputFlow.App
             }
         }
 
-        /// <summary>
-        /// Parses a hotkey string into modifier flags and a virtual key code. Supports
-        /// combinations like "Ctrl+Shift+Space" or single keys like "F13".
-        /// Returns true if parsing succeeded.
-        /// </summary>
         private static bool TryParseHotkey(string hotkey, out uint modifiers, out int vk)
         {
             modifiers = 0;
@@ -810,7 +726,6 @@ namespace InputFlow.App
                     case "SHIFT": modifiers |= MOD_SHIFT; break;
                     case "WIN": modifiers |= MOD_WIN; break;
                     default:
-                        // Assume last token is the virtual key.
                         if (TryParseVirtualKey(token, out int parsedVk))
                         {
                             vk = parsedVk;
@@ -881,7 +796,6 @@ namespace InputFlow.App
                 vk == (int)Keys.LShiftKey;
         }
 
-        // Modifier constants used by RegisterHotKey.
         private const uint MOD_ALT = 0x0001;
         private const uint MOD_CONTROL = 0x0002;
         private const uint MOD_SHIFT = 0x0004;
