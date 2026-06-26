@@ -192,6 +192,7 @@ Before pushing a release tag:
 3. Confirm any stage-specific manual Windows tests are complete.
 4. Confirm README, ROADMAP, VALIDATION, and release notes describe the actual behavior.
 5. Confirm known limitations are not hidden.
+6. Confirm `docs/releases/<tag>.md` exists when the release needs hand-written notes.
 
 Release tags use versions such as:
 
@@ -210,6 +211,8 @@ Pushing a tag matching `v*` runs `.github/workflows/release.yml`. That workflow 
 5. Package a portable ZIP named like `InputFlow-v0.2.0-win-x64.zip`.
 6. Upload the ZIP as a workflow artifact.
 7. Create a GitHub Release with the ZIP attached.
+
+If `docs/releases/<tag>.md` exists, the release workflow uses it as the GitHub Release notes. Otherwise it falls back to GitHub-generated notes.
 
 After the release workflow finishes:
 
