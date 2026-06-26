@@ -27,8 +27,15 @@ namespace InputFlow.App
             Application.SetCompatibleTextRenderingDefault(false);
 
             string appDir = AppDomain.CurrentDomain.BaseDirectory;
-            string configPath = Path.Combine(appDir, "inputflow.json");
-            string logPath = Path.Combine(appDir, "inputflow.log");
+            string configDirectory = GetAppDataDirectory(Environment.SpecialFolder.ApplicationData, appDir);
+            string logDirectory = GetAppDataDirectory(Environment.SpecialFolder.LocalApplicationData, appDir);
+            Directory.CreateDirectory(configDirectory);
+            Directory.CreateDirectory(logDirectory);
+
+            string configPath = Path.Combine(configDirectory, "inputflow.json");
+            string logPath = Path.Combine(logDirectory, "inputflow.log");
+            string legacyConfigPath = Path.Combine(appDir, "inputflow.json");
+            string? migratedLegacyConfigPath = TryMigrateLegacyConfig(configPath, legacyConfigPath);
 
             if (!File.Exists(configPath))
             {
@@ -74,8 +81,30 @@ namespace InputFlow.App
                 File.WriteAllText(configPath, System.Text.Json.JsonSerializer.Serialize(defaultConfig, opts));
             }
 
-            using var context = new TrayApplicationContext(configPath, logPath);
+            using var context = new TrayApplicationContext(configPath, logPath, migratedLegacyConfigPath);
             Application.Run(context);
+        }
+
+        private static string GetAppDataDirectory(Environment.SpecialFolder folder, string fallbackDirectory)
+        {
+            string root = Environment.GetFolderPath(folder);
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                root = fallbackDirectory;
+            }
+
+            return Path.Combine(root, "InputFlow");
+        }
+
+        private static string? TryMigrateLegacyConfig(string configPath, string legacyConfigPath)
+        {
+            if (File.Exists(configPath) || !File.Exists(legacyConfigPath))
+            {
+                return null;
+            }
+
+            File.Copy(legacyConfigPath, configPath, overwrite: false);
+            return legacyConfigPath;
         }
 
         private sealed class TrayApplicationContext : ApplicationContext
@@ -84,6 +113,7 @@ namespace InputFlow.App
 
             private readonly string _configPath;
             private readonly string _logPath;
+            private readonly string? _migratedLegacyConfigPath;
             private InputFlowConfig _config;
             private readonly ILogger _logger;
             private readonly InputFlowManager _manager;
@@ -98,10 +128,11 @@ namespace InputFlow.App
             private FileSystemWatcher? _configWatcher;
             private ToolStripMenuItem? _pauseMenuItem;
 
-            public TrayApplicationContext(string configPath, string logPath)
+            public TrayApplicationContext(string configPath, string logPath, string? migratedLegacyConfigPath)
             {
                 _configPath = configPath;
                 _logPath = logPath;
+                _migratedLegacyConfigPath = migratedLegacyConfigPath;
                 _logger = new FileLogger(logPath);
 
                 _uiDispatcher = new Control();
@@ -491,6 +522,10 @@ namespace InputFlow.App
                 _logger.Info("InputFlow starting.");
                 _logger.Info($"Config path: {_configPath}");
                 _logger.Info($"Log path: {_logPath}");
+                if (!string.IsNullOrWhiteSpace(_migratedLegacyConfigPath))
+                {
+                    _logger.Info($"Migrated legacy config from: {_migratedLegacyConfigPath}");
+                }
                 _logger.Info($"Tray icon visible: {_config.ShowTrayIcon}");
                 _logger.Info($"Configured workflows: {_config.Workflows.Count}");
                 _logger.Info($"Configured profiles: {_config.Profiles.Count}");
