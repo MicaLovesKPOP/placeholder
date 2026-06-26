@@ -103,7 +103,14 @@ The tray menu includes:
 
 ## Configuration
 
-On first run, the current technical preview creates `inputflow.json` next to the executable.
+InputFlow stores runtime files in stable per-user locations:
+
+```text
+%APPDATA%\InputFlow\inputflow.json
+%LOCALAPPDATA%\InputFlow\inputflow.log
+```
+
+On first run after upgrading from an older portable build, InputFlow copies a legacy `inputflow.json` from next to `InputFlow.exe` into `%APPDATA%\InputFlow\inputflow.json` if the per-user config does not already exist. The legacy file is left in place.
 
 A sample configuration is available at:
 
@@ -205,7 +212,6 @@ samples               Example configuration files
 
 - There is no settings window yet.
 - First-run setup is not implemented yet.
-- The current technical preview still creates config next to the executable.
 - Hold-to-switch workflow mode is not implemented yet.
 - Some Windows language/input setups may require more exact TSF profile matching.
 - Elevated apps may not accept input-method changes from a non-elevated InputFlow process.

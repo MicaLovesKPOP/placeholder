@@ -25,6 +25,8 @@ The intended separation is:
 Expected responsibilities:
 
 - Start the tray application.
+- Resolve stable per-user runtime paths.
+- Migrate legacy executable-adjacent config when needed.
 - Load `inputflow.json`.
 - Create default config if missing.
 - Register configured hotkeys.
@@ -42,7 +44,6 @@ InputFlow.App/Program.cs
 Current known limitation:
 
 - Tray menu is minimal and should be expanded.
-- Config reload behavior likely needs debounce to avoid duplicate reloads.
 
 ## InputFlow.Core
 
@@ -196,6 +197,22 @@ ProfileNameContains
 
 ## Runtime Files
 
+Current runtime files:
+
+```text
+%APPDATA%\InputFlow\inputflow.json
+%LOCALAPPDATA%\InputFlow\inputflow.log
+```
+
+Older portable builds stored these next to `InputFlow.exe`:
+
+```text
+inputflow.json
+inputflow.log
+```
+
+When the per-user config is missing and a legacy executable-adjacent `inputflow.json` exists, startup copies the legacy config into `%APPDATA%\InputFlow\inputflow.json` and leaves the original file in place. Logs are written to `%LOCALAPPDATA%\InputFlow\inputflow.log`.
+
 Runtime files should not be committed by default:
 
 ```text
@@ -210,6 +227,5 @@ obj/
 
 - TSF/InputMethodTip matching for more exact profile identity.
 - Settings UI and first-run profile picker.
-- Cleaner app lifecycle and config reload debounce.
 - Better diagnostics abstraction.
-- Optional release packaging.
+- Optional installer packaging and update checks.
