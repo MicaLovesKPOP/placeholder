@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows.Forms;
 using InputFlow.Core;
 using InputFlow.Windows;
@@ -20,9 +21,20 @@ namespace InputFlow.App
     /// </summary>
     internal static class Program
     {
+        private const string SingleInstanceMutexName = @"Local\InputFlow.SingleInstance";
+
         [STAThread]
         private static void Main()
         {
+            using var singleInstanceMutex = new Mutex(
+                initiallyOwned: true,
+                name: SingleInstanceMutexName,
+                createdNew: out bool createdNew);
+            if (!createdNew)
+            {
+                return;
+            }
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
