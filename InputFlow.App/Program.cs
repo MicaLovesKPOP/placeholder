@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using InputFlow.Core;
@@ -38,7 +39,7 @@ namespace InputFlow.App
             {
                 var defaultConfig = new InputFlowConfig
                 {
-                    Version = 1,
+                    Version = InputFlowConfig.CurrentVersion,
                     Startup = false,
                     ShowTrayIcon = true,
                     LogLevel = "Info",
@@ -57,12 +58,17 @@ namespace InputFlow.App
                             EnterMode = "hangul"
                         }
                     },
-                    Hotkeys = new List<HotkeyConfig>
+                    Workflows = new List<WorkflowConfig>
                     {
-                        new HotkeyConfig
+                        new WorkflowConfig
                         {
+                            Id = "korean-toggle",
                             Name = "Korean toggle",
-                            Keys = "Ctrl+Alt+Shift+K",
+                            Mode = "toggle",
+                            Triggers = new List<TriggerConfig>
+                            {
+                                new TriggerConfig { Keys = "Ctrl+Alt+Shift+K" }
+                            },
                             Target = "korean",
                             ReturnBehavior = "alwaysSpecificLayout",
                             Fallback = "us-intl"
@@ -313,71 +319,167 @@ namespace InputFlow.App
             }
 
             /// <summary>
-            /// Registers hotkeys based on the current configuration. Each hotkey
+            /// Registers workflow triggers based on the current configuration. Each trigger
             /// in the configuration is parsed and registered with Windows. If
             /// parsing or registration fails, a warning is logged and the
-            /// offending hotkey is skipped.
+            /// offending trigger is skipped.
             /// </summary>
             private void RegisterHotkeys()
             {
                 _nextHotkeyId = 1;
                 var matched = InputProfileManager.MatchProfiles(_installedProfiles, _config.Profiles);
-                foreach (var hk in _config.Hotkeys)
+                foreach (var workflow in _config.Workflows)
                 {
-                    // Only toggle mode is supported currently.
-                    if (!string.Equals(hk.Mode, "toggle", StringComparison.OrdinalIgnoreCase))
+                    if (!TryResolveWorkflowTargets(workflow, matched, out var targetIds, out var targets))
                     {
-                        _logger.Warning($"Hotkey '{hk.Name}' uses unsupported mode '{hk.Mode}'. Skipping.");
                         continue;
                     }
-                    // Find target profile.
-                    if (!matched.TryGetValue(hk.Target, out var target))
-                    {
-                        _logger.Warning($"Hotkey '{hk.Name}' references unknown target profile '{hk.Target}'. Skipping.");
-                        continue;
-                    }
-                    // Find fallback profile if specified.
+
                     InputProfile? fallback = null;
-                    if (!string.IsNullOrEmpty(hk.Fallback) && !matched.TryGetValue(hk.Fallback, out fallback))
+                    if (!string.IsNullOrWhiteSpace(workflow.Fallback) && !matched.TryGetValue(workflow.Fallback, out fallback))
                     {
-                        _logger.Warning($"Hotkey '{hk.Name}' references fallback profile '{hk.Fallback}' that did not match an installed profile.");
+                        _logger.Warning($"Workflow '{GetWorkflowDisplayName(workflow)}' references fallback profile '{workflow.Fallback}' that did not match an installed profile.");
                     }
-                    // Parse the key combination.
-                    if (!TryParseHotkey(hk.Keys, out uint mods, out int vk))
+
+                    var enterModesByKlid = BuildEnterModeMap(targetIds, targets, workflow.Fallback, fallback);
+
+                    foreach (var trigger in workflow.Triggers)
                     {
-                        _logger.Warning($"Hotkey '{hk.Name}' has invalid key specification '{hk.Keys}'. Skipping.");
-                        continue;
-                    }
-                    int id = _nextHotkeyId++;
-                    if (IsSingleKeyHookTrigger(mods, vk))
-                    {
-                        if (!_singleKeyHook.Register(vk, id, hk.Keys))
+                        if (trigger == null)
                         {
-                            _logger.Warning($"Failed to register single-key trigger '{hk.Keys}' (Name: {hk.Name}). It may already be registered.");
+                            _logger.Warning($"Workflow '{GetWorkflowDisplayName(workflow)}' contains a null trigger. Skipping.");
                             continue;
                         }
 
-                        RegisterManagerHotkey(id, target, fallback, hk);
-                        _logger.Info($"Registered single-key trigger '{hk.Keys}' for target '{hk.Target}' as ID {id}.");
-                        continue;
-                    }
+                        if (!TryParseHotkey(trigger.Keys, out uint mods, out int vk))
+                        {
+                            _logger.Warning($"Workflow '{GetWorkflowDisplayName(workflow)}' has invalid trigger '{trigger.Keys}'. Skipping.");
+                            continue;
+                        }
 
-                    bool ok = RegisterHotKey(_hotkeyWindow.Handle, id, mods, vk);
-                    if (!ok)
-                    {
-                        _logger.Warning($"Failed to register hotkey '{hk.Keys}' (Name: {hk.Name}). It may be in use.");
-                        continue;
+                        int id = _nextHotkeyId++;
+                        if (IsSingleKeyHookTrigger(mods, vk))
+                        {
+                            if (!_singleKeyHook.Register(vk, id, trigger.Keys))
+                            {
+                                _logger.Warning($"Failed to register single-key trigger '{trigger.Keys}' (Workflow: {GetWorkflowDisplayName(workflow)}). It may already be registered.");
+                                continue;
+                            }
+
+                            RegisterManagerWorkflow(id, workflow, targets, fallback, enterModesByKlid);
+                            _logger.Info($"Registered single-key trigger '{trigger.Keys}' for workflow '{GetWorkflowDisplayName(workflow)}' as ID {id}.");
+                            continue;
+                        }
+
+                        bool ok = RegisterHotKey(_hotkeyWindow.Handle, id, mods, vk);
+                        if (!ok)
+                        {
+                            _logger.Warning($"Failed to register trigger '{trigger.Keys}' (Workflow: {GetWorkflowDisplayName(workflow)}). It may be in use.");
+                            continue;
+                        }
+
+                        _registeredHotkeys[id] = (mods, vk);
+                        RegisterManagerWorkflow(id, workflow, targets, fallback, enterModesByKlid);
+                        _logger.Info($"Registered trigger '{trigger.Keys}' for workflow '{GetWorkflowDisplayName(workflow)}' as ID {id}.");
                     }
-                    _registeredHotkeys[id] = (mods, vk);
-                    RegisterManagerHotkey(id, target, fallback, hk);
-                    _logger.Info($"Registered hotkey '{hk.Keys}' for target '{hk.Target}' as ID {id}.");
                 }
             }
 
-            private void RegisterManagerHotkey(int id, InputProfile target, InputProfile? fallback, HotkeyConfig hk)
+            private bool TryResolveWorkflowTargets(
+                WorkflowConfig workflow,
+                Dictionary<string, InputProfile> matched,
+                out List<string> targetIds,
+                out List<InputProfile> targets)
             {
-                var targetDefinition = _config.Profiles.FirstOrDefault(p => string.Equals(p.Id, hk.Target, StringComparison.OrdinalIgnoreCase));
-                _manager.RegisterHotkey(id, target, fallback, hk.ReturnBehavior ?? "lastNonTarget", targetDefinition?.EnterMode);
+                targetIds = GetWorkflowTargetIds(workflow).ToList();
+                targets = new List<InputProfile>();
+
+                if (targetIds.Count == 0)
+                {
+                    _logger.Warning($"Workflow '{GetWorkflowDisplayName(workflow)}' does not define any target profiles. Skipping.");
+                    return false;
+                }
+
+                foreach (string targetId in targetIds)
+                {
+                    if (!matched.TryGetValue(targetId, out var target))
+                    {
+                        _logger.Warning($"Workflow '{GetWorkflowDisplayName(workflow)}' references target profile '{targetId}' that did not match an installed profile. Skipping.");
+                        return false;
+                    }
+
+                    targets.Add(target);
+                }
+
+                return true;
+            }
+
+            private static IReadOnlyList<string> GetWorkflowTargetIds(WorkflowConfig workflow)
+            {
+                if (string.Equals(workflow.Mode, "cycle", StringComparison.OrdinalIgnoreCase))
+                {
+                    return workflow.Targets
+                        .Where(target => !string.IsNullOrWhiteSpace(target))
+                        .Select(target => target.Trim())
+                        .ToList();
+                }
+
+                return string.IsNullOrWhiteSpace(workflow.Target)
+                    ? Array.Empty<string>()
+                    : new[] { workflow.Target.Trim() };
+            }
+
+            private Dictionary<string, string?> BuildEnterModeMap(
+                IReadOnlyList<string> targetIds,
+                IReadOnlyList<InputProfile> targets,
+                string? fallbackId,
+                InputProfile? fallback)
+            {
+                var result = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+                for (int i = 0; i < targetIds.Count && i < targets.Count; i++)
+                {
+                    result[targets[i].KLID] = GetEnterModeForProfileId(targetIds[i]);
+                }
+
+                if (fallback != null && !string.IsNullOrWhiteSpace(fallbackId) && !result.ContainsKey(fallback.KLID))
+                {
+                    result[fallback.KLID] = GetEnterModeForProfileId(fallbackId);
+                }
+
+                return result;
+            }
+
+            private string? GetEnterModeForProfileId(string profileId)
+            {
+                var definition = _config.Profiles.FirstOrDefault(p => string.Equals(p.Id, profileId, StringComparison.OrdinalIgnoreCase));
+                return definition?.EnterMode;
+            }
+
+            private void RegisterManagerWorkflow(
+                int id,
+                WorkflowConfig workflow,
+                IReadOnlyList<InputProfile> targets,
+                InputProfile? fallback,
+                IReadOnlyDictionary<string, string?> enterModesByKlid)
+            {
+                _manager.RegisterWorkflow(
+                    id,
+                    workflow.Mode,
+                    targets,
+                    fallback,
+                    workflow.ReturnBehavior ?? "lastNonTarget",
+                    enterModesByKlid);
+            }
+
+            private static string GetWorkflowDisplayName(WorkflowConfig workflow)
+            {
+                if (!string.IsNullOrWhiteSpace(workflow.Name))
+                {
+                    return workflow.Name;
+                }
+
+                return string.IsNullOrWhiteSpace(workflow.Id) ? "unnamed workflow" : workflow.Id;
             }
 
             private void OnSingleKeyTriggerPressed(int id)
@@ -417,7 +519,7 @@ namespace InputFlow.App
                 _logger.Info($"Config path: {_configPath}");
                 _logger.Info($"Log path: {_logPath}");
                 _logger.Info($"Tray icon visible: {_config.ShowTrayIcon}");
-                _logger.Info($"Configured hotkeys: {_config.Hotkeys.Count}");
+                _logger.Info($"Configured workflows: {_config.Workflows.Count}");
                 _logger.Info($"Configured profiles: {_config.Profiles.Count}");
                 _logger.Info($"Excluded processes: {string.Join(", ", _config.ExcludedProcesses)}");
                 LogInstalledProfiles(_installedProfiles);
