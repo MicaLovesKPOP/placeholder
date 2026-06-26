@@ -1,18 +1,40 @@
 # InputFlow
 
-InputFlow is a small Windows tray utility for smarter input-method switching.
+InputFlow is a Windows tray app for precise multilingual input-profile workflows.
 
-The current working baseline focuses on an English/Korean workflow:
+It is for people who use multiple keyboard layouts, languages, and IMEs and want to switch exactly where they mean to go instead of cycling blindly through every Windows input method.
 
-- switch from English (Netherlands) / United States-International to Korean Microsoft IME
-- switch from Korean back to English (Netherlands) / United States-International
-- safely set Korean Microsoft IME to Hangul/native mode without blindly toggling the Hangul key
+InputFlow is intended to support workflows such as:
+
+- toggle between two exact profiles, such as Dutch US-International <-> Korean Hangul
+- cycle through a named group, such as English -> Japanese -> Korean -> Chinese
+- jump directly to a specific layout or IME
+- return to the previous profile
+- safely enter supported IME modes, starting with Korean Hangul/native mode
 
 ## Status
 
-InputFlow is an early working prototype.
+InputFlow is currently a working technical preview.
 
-It is currently best treated as a technical preview for the original workflow. More testing, UI polish, and diagnostics are still needed before a broad public release.
+The validated seed workflow is:
+
+- switch from Dutch / United States-International to Korean Microsoft IME
+- switch from Korean back to Dutch / United States-International
+- set Korean Microsoft IME to Hangul/native mode without blindly toggling the Hangul key
+
+The next product goal is a first multilingual preview that is useful beyond one hardcoded setup: first-run setup, installed-profile picking, stable per-user config, and workflow configuration for regular layouts and IMEs.
+
+See [RELEASE_PLAN.md](RELEASE_PLAN.md) for staged release gates and [ROADMAP.md](ROADMAP.md) for the broader product roadmap.
+
+## What It Is Not
+
+InputFlow is not:
+
+- a translator
+- a keyboard layout editor
+- a general macro tool
+- a replacement for every Windows language feature
+- an app that blindly toggles IME modes when state-safe APIs are required
 
 ## Requirements
 
@@ -58,6 +80,14 @@ If `InputFlow.exe` is not present, inspect the publish folder:
 Get-ChildItem .\publish\InputFlow-win-x64\*.exe
 ```
 
+## Releases
+
+Release tags use `v*` versions, such as `v0.2.0`.
+
+Pushing a version tag runs the release workflow, rebuilds and tests the app, publishes a framework-dependent Windows x64 build, packages it as a portable ZIP, and creates a GitHub Release with the ZIP attached.
+
+Every release must pass the stage gates in [RELEASE_PLAN.md](RELEASE_PLAN.md).
+
 ## Tray Menu
 
 The tray menu includes:
@@ -73,7 +103,7 @@ The tray menu includes:
 
 ## Configuration
 
-On first run, InputFlow creates `inputflow.json` next to the executable.
+On first run, the current technical preview creates `inputflow.json` next to the executable.
 
 A sample configuration is available at:
 
@@ -174,6 +204,8 @@ samples               Example configuration files
 ## Known Limitations
 
 - There is no settings window yet.
+- First-run setup is not implemented yet.
+- The current technical preview still creates config next to the executable.
 - Hold-to-switch workflow mode is not implemented yet.
 - Some Windows language/input setups may require more exact TSF profile matching.
 - Elevated apps may not accept input-method changes from a non-elevated InputFlow process.
