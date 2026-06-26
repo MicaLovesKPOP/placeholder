@@ -120,7 +120,7 @@ samples/inputflow.sample.json
 
 Config version 2 uses `Workflows`. Existing version 1 configs with `Hotkeys` are migrated in memory when loaded, so existing working configs should continue to run.
 
-The generated `v0.1.x` default config is a seed for Dutch (Netherlands) / United States-International plus Korean Microsoft IME. If your installed profiles differ, use tray `Copy Diagnostics`, inspect the installed profile list, and adjust `Profiles` in `%APPDATA%\InputFlow\inputflow.json`.
+The generated `v0.1.x` default config is a temporary seed for Dutch (Netherlands) / United States-International plus Korean Microsoft IME. It is not the long-term preset model. Future releases should replace this with first-run setup, profile discovery, and user-chosen workflows. If your installed profiles differ, use tray `Copy Diagnostics`, inspect the installed profile list, and adjust `Profiles` in `%APPDATA%\InputFlow\inputflow.json`.
 
 The default trigger is `RightAlt`. When used as a single-key trigger, InputFlow suppresses that key while running, so it also replaces normal AltGr behavior for layouts that use AltGr. Change the trigger if you need AltGr for typing characters.
 
@@ -208,7 +208,6 @@ The current implementation sets Korean IME open/native conversion mode through W
 ```text
 InputFlow.App         Tray app and user-facing startup
 InputFlow.Core        Config, matching, state machine, logging
-InputFlow.Core.Tests  Package-free core validation tests
 InputFlow.Windows     Win32/IME interop
 samples               Example configuration files
 ```
@@ -226,4 +225,4 @@ samples               Example configuration files
 
 ## License
 
-No license has been selected yet.
+InputFlow is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE).
