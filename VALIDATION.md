@@ -86,6 +86,21 @@ To validate path migration manually:
 5. Confirm `%LOCALAPPDATA%\InputFlow\inputflow.log` exists.
 6. Use tray `Open Config`, `Open Log`, and `Copy Diagnostics`; confirm they point to the per-user paths.
 
+## Single Instance Test
+
+Start `InputFlow.exe`, then start the same `InputFlow.exe` again from the same Windows session.
+
+Expected behavior:
+
+```text
+Only one InputFlow tray icon remains visible
+Only one InputFlow process remains running after the second launch exits
+Triggers still fire once per key press, not twice
+The original instance keeps using the same config and log paths
+```
+
+Exit InputFlow from the tray menu before repeating this test with another build.
+
 ## Manual Functional Test
 
 Use a simple non-elevated text input target such as Notepad.
@@ -251,3 +266,4 @@ Manual Windows testing is required for changes to:
 - foreground/elevated app handling
 - clipboard diagnostics from the tray process
 - runtime config/log path migration
+- single-instance startup behavior
