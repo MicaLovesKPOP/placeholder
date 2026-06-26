@@ -67,7 +67,7 @@ static void LegacyV1HotkeysMigrateToWorkflows()
         }
       ],
       "Profiles": [
-        { "Id": "us-intl", "Match": { "LanguageTag": "en-NL" } },
+        { "Id": "us-intl", "Match": { "LanguageTag": "nl-NL" } },
         { "Id": "korean", "Match": { "LanguageTag": "ko-KR" }, "EnterMode": "hangul" }
       ]
     }
@@ -260,9 +260,10 @@ static void DiagnosticsReportIncludesProfileInventoryAndMatches()
 
     AssertContains(new[] { report }, "InputFlow diagnostics");
     AssertContains(new[] { report }, "Configured workflows: 1");
-    AssertContains(new[] { report }, "Installed input profiles: 2");
+    AssertContains(new[] { report }, "Installed input profiles: 3");
     AssertContains(new[] { report }, "Configured profile match reports: 2");
-    AssertContains(new[] { report }, "compatibility fallback");
+    AssertContains(new[] { report }, "F0010413");
+    AssertContains(new[] { report }, "Dutch (Netherlands)");
 }
 
 static InputFlowConfig CreateKnownWorkingWorkflowConfig()
@@ -279,7 +280,7 @@ static InputFlowConfig CreateKnownWorkingWorkflowConfig()
             new ProfileDefinition
             {
                 Id = "us-intl",
-                Match = new ProfileMatch { LanguageTag = "en-NL" }
+                Match = new ProfileMatch { LanguageTag = "nl-NL" }
             },
             new ProfileDefinition
             {
@@ -311,6 +312,7 @@ static IReadOnlyList<InputProfile> CreateInstalledProfiles()
 {
     return new[]
     {
+        new InputProfile(new IntPtr(unchecked((int)0xF0010413)), "F0010413", "Dutch (Netherlands)", isIme: true, languageTag: "nl-NL"),
         new InputProfile(new IntPtr(0x00020409), "00020409", "English (United States)", isIme: true, languageTag: "en-US"),
         new InputProfile(new IntPtr(0xE0010412L), "E0010412", "Korean", isIme: true, languageTag: "ko-KR")
     };
