@@ -14,12 +14,14 @@ namespace InputFlow.Core
         /// <param name="klid">The 8-character KLID string (e.g. "00000409").</param>
         /// <param name="friendlyName">A descriptive name for this profile.</param>
         /// <param name="isIme">True if this profile represents an IME; otherwise false.</param>
-        public InputProfile(IntPtr hkl, string klid, string friendlyName, bool isIme)
+        /// <param name="languageTag">Best-effort BCP-47 language tag derived from the HKL LANGID.</param>
+        public InputProfile(IntPtr hkl, string klid, string friendlyName, bool isIme, string? languageTag = null)
         {
             HKL = hkl;
             KLID = klid;
             FriendlyName = friendlyName;
             IsIme = isIme;
+            LanguageTag = languageTag;
         }
 
         /// <summary>
@@ -33,7 +35,7 @@ namespace InputFlow.Core
         public string KLID { get; }
 
         /// <summary>
-        /// Gets the friendly name of this profile.  This may be empty if no description was found.
+        /// Gets the friendly name of this profile. This may be empty if no description was found.
         /// </summary>
         public string FriendlyName { get; }
 
@@ -41,6 +43,11 @@ namespace InputFlow.Core
         /// Gets a value indicating whether this profile is an IME.
         /// </summary>
         public bool IsIme { get; }
+
+        /// <summary>
+        /// Gets the best-effort BCP-47 language tag derived from the LANGID, if available.
+        /// </summary>
+        public string? LanguageTag { get; }
 
         /// <summary>
         /// Gets the LANGID (low 16 bits) of the HKL.
