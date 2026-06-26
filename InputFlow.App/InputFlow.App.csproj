@@ -13,6 +13,7 @@
     <Description>Windows tray app for precise multilingual input-profile workflows.</Description>
     <Authors>MicaLovesKPOP</Authors>
     <RepositoryUrl>https://github.com/MicaLovesKPOP/InputFlow</RepositoryUrl>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
