@@ -94,7 +94,7 @@ namespace InputFlow.Core
                 Targets = targets.ToList(),
                 Fallback = fallback,
                 ReturnBehavior = ParseReturnBehavior(returnBehavior),
-                EnterModesByKlid = new Dictionary<string, string?>(enterModesByKlid ?? new Dictionary<string, string?>(), StringComparer.OrdinalIgnoreCase)
+                EnterModesByKlid = CopyEnterModeMap(enterModesByKlid)
             };
         }
 
@@ -111,7 +111,6 @@ namespace InputFlow.Core
                 return;
             }
 
-            // Determine the foreground process. If excluded, ignore.
             string foregroundProcess = GetForegroundProcessName();
             if (!string.IsNullOrEmpty(foregroundProcess) && _excludedProcessNames.Contains(foregroundProcess))
             {
@@ -281,9 +280,6 @@ namespace InputFlow.Core
             {
                 IntPtr foregroundWindow = InputApis.GetForegroundWindow();
 
-                // Important: use the exact HKL that Windows already reported as installed.
-                // Calling LoadKeyboardLayout with only a KLID can cause Windows to load/activate
-                // a different language/layout pair, such as plain English (United States) / US.
                 IntPtr hkl = profile.HKL;
 
                 _logger.Info($"Switch request: {profile.FriendlyName} KLID={profile.KLID} HKL=0x{profile.HKL.ToInt64():X8}");
@@ -315,7 +311,6 @@ namespace InputFlow.Core
                     return true;
                 }
 
-                // Retry once, safely.
                 if (foregroundWindow != IntPtr.Zero)
                 {
                     InputApis.PostMessage(foregroundWindow, InputApis.WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, hkl);
@@ -349,14 +344,12 @@ namespace InputFlow.Core
         {
             uint threadId = InputApis.GetWindowThreadProcessId(InputApis.GetForegroundWindow(), out _);
             IntPtr currentHkl = InputApis.GetKeyboardLayout(threadId);
-            // Derive KLID from HKL by taking low word and converting to 8-digit hex.
             string klid = ((ulong)currentHkl.ToInt64() & 0xFFFFFFFF).ToString("X8");
             foreach (var profile in _installedProfiles)
             {
                 if (string.Equals(profile.KLID, klid, StringComparison.OrdinalIgnoreCase))
                     return profile;
             }
-            // Unknown profile; return a placeholder with minimal info.
             return new InputProfile(currentHkl, klid, klid, false);
         }
 
@@ -400,10 +393,6 @@ namespace InputFlow.Core
             Cycle
         }
 
-        /// <summary>
-        /// Enumeration of supported return behaviours. More behaviours can be added
-        /// in future versions. See design document section 13 for semantics.
-        /// </summary>
         private enum ReturnBehavior
         {
             LastNonTarget,
@@ -411,10 +400,6 @@ namespace InputFlow.Core
             ManualOnly
         }
 
-        /// <summary>
-        /// Internal state for each hotkey. Stores the workflow targets, fallback,
-        /// previous non-target and return behaviour.
-        /// </summary>
         private class HotkeyState
         {
             public WorkflowMode Mode;
@@ -537,7 +522,6 @@ namespace InputFlow.Core
                 return false;
             }
 
-            // This sets IME open/native mode explicitly. It is not a Hangul-key toggle.
             IntPtr openBefore = InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_GETOPENSTATUS, IntPtr.Zero);
             IntPtr conversionBefore = InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_GETCONVERSIONMODE, IntPtr.Zero);
 
@@ -568,6 +552,22 @@ namespace InputFlow.Core
             foreach (var target in targets)
             {
                 result[target.KLID] = enterMode;
+            }
+
+            return result;
+        }
+
+        private static Dictionary<string, string?> CopyEnterModeMap(IReadOnlyDictionary<string, string?>? enterModes)
+        {
+            var result = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+            if (enterModes == null)
+            {
+                return result;
+            }
+
+            foreach (var pair in enterModes)
+            {
+                result[pair.Key] = pair.Value;
             }
 
             return result;
