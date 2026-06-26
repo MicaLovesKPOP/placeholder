@@ -5,8 +5,11 @@ using InputFlow.Core;
 
 var tests = new (string Name, Action Test)[]
 {
-    ("CurrentSampleConfigIsValid", CurrentSampleConfigIsValid),
-    ("InvalidProfileReferenceIsRejected", InvalidProfileReferenceIsRejected),
+    ("CurrentWorkflowConfigIsValid", CurrentWorkflowConfigIsValid),
+    ("LegacyV1HotkeysMigrateToWorkflows", LegacyV1HotkeysMigrateToWorkflows),
+    ("InvalidWorkflowProfileReferenceIsRejected", InvalidWorkflowProfileReferenceIsRejected),
+    ("CycleWorkflowRequiresTwoTargets", CycleWorkflowRequiresTwoTargets),
+    ("ThreeProfileCycleConfigIsValid", ThreeProfileCycleConfigIsValid),
     ("ProfilesRequireMatchCriteria", ProfilesRequireMatchCriteria),
     ("MalformedJsonReturnsLoadErrors", MalformedJsonReturnsLoadErrors),
     ("LegacyLoadFallsBackToDefaultsOnInvalidConfig", LegacyLoadFallsBackToDefaultsOnInvalidConfig),
@@ -34,26 +37,107 @@ if (failed > 0)
     Environment.ExitCode = 1;
 }
 
-static void CurrentSampleConfigIsValid()
+static void CurrentWorkflowConfigIsValid()
 {
-    var config = CreateKnownWorkingConfig();
+    var config = CreateKnownWorkingWorkflowConfig();
     var errors = InputFlowConfigValidator.Validate(config);
     AssertEqual(0, errors.Count, string.Join(Environment.NewLine, errors));
 }
 
-static void InvalidProfileReferenceIsRejected()
+static void LegacyV1HotkeysMigrateToWorkflows()
 {
-    var config = CreateKnownWorkingConfig();
-    config.Hotkeys[0].Fallback = "missing";
+    string path = WriteTempConfig("""
+    {
+      "Version": 1,
+      "Startup": false,
+      "ShowTrayIcon": true,
+      "LogLevel": "Info",
+      "Hotkeys": [
+        {
+          "Name": "Korean toggle",
+          "Keys": "RightAlt",
+          "Mode": "toggle",
+          "Target": "korean",
+          "ReturnBehavior": "alwaysSpecificLayout",
+          "Fallback": "us-intl"
+        }
+      ],
+      "Profiles": [
+        { "Id": "us-intl", "Match": { "LanguageTag": "en-NL" } },
+        { "Id": "korean", "Match": { "LanguageTag": "ko-KR" }, "EnterMode": "hangul" }
+      ]
+    }
+    """);
+
+    try
+    {
+        var result = InputFlowConfig.LoadDetailed(path);
+
+        AssertTrue(result.Success, string.Join(Environment.NewLine, result.Errors));
+        AssertEqual(InputFlowConfig.CurrentVersion, result.Config.Version, "Legacy config should migrate to current version.");
+        AssertEqual(1, result.Config.Workflows.Count, "Legacy hotkey should become one workflow.");
+        AssertEqual("toggle", result.Config.Workflows[0].Mode, "Migrated workflow should preserve mode.");
+        AssertEqual("RightAlt", result.Config.Workflows[0].Triggers[0].Keys, "Migrated workflow should preserve trigger.");
+        AssertEqual("korean", result.Config.Workflows[0].Target, "Migrated workflow should preserve target.");
+    }
+    finally
+    {
+        File.Delete(path);
+    }
+}
+
+static void InvalidWorkflowProfileReferenceIsRejected()
+{
+    var config = CreateKnownWorkingWorkflowConfig();
+    config.Workflows[0].Fallback = "missing";
 
     var errors = InputFlowConfigValidator.Validate(config);
 
     AssertContains(errors, "Fallback references unknown profile 'missing'");
 }
 
+static void CycleWorkflowRequiresTwoTargets()
+{
+    var config = CreateKnownWorkingWorkflowConfig();
+    config.Workflows[0] = new WorkflowConfig
+    {
+        Id = "bad-cycle",
+        Name = "Bad cycle",
+        Mode = "cycle",
+        Triggers = new List<TriggerConfig> { new TriggerConfig { Keys = "F13" } },
+        Targets = new List<string> { "us-intl" }
+    };
+
+    var errors = InputFlowConfigValidator.Validate(config);
+
+    AssertContains(errors, "Targets must contain at least two profiles for cycle mode");
+}
+
+static void ThreeProfileCycleConfigIsValid()
+{
+    var config = CreateKnownWorkingWorkflowConfig();
+    config.Profiles.Add(new ProfileDefinition
+    {
+        Id = "japanese",
+        Match = new ProfileMatch { LanguageTag = "ja-JP" }
+    });
+    config.Workflows.Add(new WorkflowConfig
+    {
+        Id = "writing-cycle",
+        Name = "Writing cycle",
+        Mode = "cycle",
+        Triggers = new List<TriggerConfig> { new TriggerConfig { Keys = "Ctrl+Shift+Space" } },
+        Targets = new List<string> { "us-intl", "korean", "japanese" }
+    });
+
+    var errors = InputFlowConfigValidator.Validate(config);
+
+    AssertEqual(0, errors.Count, string.Join(Environment.NewLine, errors));
+}
+
 static void ProfilesRequireMatchCriteria()
 {
-    var config = CreateKnownWorkingConfig();
+    var config = CreateKnownWorkingWorkflowConfig();
     config.Profiles.Add(new ProfileDefinition
     {
         Id = "empty",
@@ -88,8 +172,8 @@ static void LegacyLoadFallsBackToDefaultsOnInvalidConfig()
     {
         var config = InputFlowConfig.Load(path);
 
-        AssertEqual(1, config.Version, "Legacy Load should return defaults after invalid config.");
-        AssertEqual(0, config.Hotkeys.Count, "Default config should not use invalid hotkeys.");
+        AssertEqual(InputFlowConfig.CurrentVersion, config.Version, "Legacy Load should return defaults after invalid config.");
+        AssertEqual(0, config.Workflows.Count, "Default config should not use invalid workflows.");
     }
     finally
     {
@@ -99,13 +183,14 @@ static void LegacyLoadFallsBackToDefaultsOnInvalidConfig()
 
 static void NullCollectionsAreNormalized()
 {
-    string path = WriteTempConfig("{ \"Version\": 1, \"Hotkeys\": null, \"Profiles\": null, \"ExcludedProcesses\": null }");
+    string path = WriteTempConfig("{ \"Version\": 2, \"Hotkeys\": null, \"Workflows\": null, \"Profiles\": null, \"ExcludedProcesses\": null }");
     try
     {
         var result = InputFlowConfig.LoadDetailed(path);
 
         AssertTrue(result.Success, string.Join(Environment.NewLine, result.Errors));
         AssertEqual(0, result.Config.Hotkeys.Count, "Hotkeys should be normalized.");
+        AssertEqual(0, result.Config.Workflows.Count, "Workflows should be normalized.");
         AssertEqual(0, result.Config.Profiles.Count, "Profiles should be normalized.");
         AssertEqual(0, result.Config.ExcludedProcesses.Count, "Excluded processes should be normalized.");
     }
@@ -117,19 +202,19 @@ static void NullCollectionsAreNormalized()
 
 static void UnsupportedWorkflowModeIsRejected()
 {
-    var config = CreateKnownWorkingConfig();
-    config.Hotkeys[0].Mode = "cycle";
+    var config = CreateKnownWorkingWorkflowConfig();
+    config.Workflows[0].Mode = "hold";
 
     var errors = InputFlowConfigValidator.Validate(config);
 
-    AssertContains(errors, "Mode 'cycle' is not supported");
+    AssertContains(errors, "Mode 'hold' is not supported");
 }
 
-static InputFlowConfig CreateKnownWorkingConfig()
+static InputFlowConfig CreateKnownWorkingWorkflowConfig()
 {
     return new InputFlowConfig
     {
-        Version = 1,
+        Version = InputFlowConfig.CurrentVersion,
         Startup = false,
         ShowTrayIcon = true,
         LogLevel = "Info",
@@ -148,13 +233,17 @@ static InputFlowConfig CreateKnownWorkingConfig()
                 EnterMode = "hangul"
             }
         },
-        Hotkeys = new List<HotkeyConfig>
+        Workflows = new List<WorkflowConfig>
         {
-            new HotkeyConfig
+            new WorkflowConfig
             {
+                Id = "korean-toggle",
                 Name = "Korean toggle",
-                Keys = "RightAlt",
                 Mode = "toggle",
+                Triggers = new List<TriggerConfig>
+                {
+                    new TriggerConfig { Keys = "RightAlt" }
+                },
                 Target = "korean",
                 ReturnBehavior = "alwaysSpecificLayout",
                 Fallback = "us-intl"
