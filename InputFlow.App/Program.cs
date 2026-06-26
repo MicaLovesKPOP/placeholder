@@ -62,7 +62,7 @@ namespace InputFlow.App
                             Mode = "toggle",
                             Triggers = new List<TriggerConfig>
                             {
-                                new TriggerConfig { Keys = "Ctrl+Alt+Shift+K" }
+                                new TriggerConfig { Keys = "RightAlt" }
                             },
                             Target = "korean",
                             ReturnBehavior = "alwaysSpecificLayout",
