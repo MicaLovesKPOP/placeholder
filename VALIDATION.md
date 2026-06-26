@@ -66,6 +66,26 @@ If this command fails, first list the published `.exe` files:
 Get-ChildItem .\publish\InputFlow-win-x64\*.exe
 ```
 
+## Runtime Files
+
+Current runtime paths:
+
+```text
+%APPDATA%\InputFlow\inputflow.json
+%LOCALAPPDATA%\InputFlow\inputflow.log
+```
+
+A legacy `inputflow.json` next to `InputFlow.exe` is copied into `%APPDATA%\InputFlow\inputflow.json` only when the per-user config does not already exist. The legacy file is not deleted.
+
+To validate path migration manually:
+
+1. Use a clean test user profile or temporarily move `%APPDATA%\InputFlow\inputflow.json` aside.
+2. Put a known `inputflow.json` next to the published `InputFlow.exe`.
+3. Start InputFlow.
+4. Confirm `%APPDATA%\InputFlow\inputflow.json` was created from the legacy file.
+5. Confirm `%LOCALAPPDATA%\InputFlow\inputflow.log` exists.
+6. Use tray `Open Config`, `Open Log`, and `Copy Diagnostics`; confirm they point to the per-user paths.
+
 ## Manual Functional Test
 
 Use a simple non-elevated text input target such as Notepad.
@@ -112,12 +132,10 @@ When profile matching is involved, inspect the copied report for selected profil
 
 ## Log Inspection
 
-The runtime log is expected next to the executable unless implementation changes.
-
-Typical publish location:
+The runtime log is expected at:
 
 ```text
-publish/InputFlow-win-x64/inputflow.log
+%LOCALAPPDATA%\InputFlow\inputflow.log
 ```
 
 Useful successful Hangul/native mode log pattern:
@@ -218,7 +236,7 @@ After any change touching input switching, profile matching, hotkeys, workflows,
    - English Netherlands -> Korean + Hangul/native
    - Korean -> English Netherlands
 6. Use Copy Diagnostics from the tray menu and inspect the copied report.
-7. Inspect `inputflow.log`.
+7. Inspect `%LOCALAPPDATA%\InputFlow\inputflow.log`.
 
 ## Validation Limitations
 
@@ -232,3 +250,4 @@ Manual Windows testing is required for changes to:
 - Korean Hangul/native mode
 - foreground/elevated app handling
 - clipboard diagnostics from the tray process
+- runtime config/log path migration
