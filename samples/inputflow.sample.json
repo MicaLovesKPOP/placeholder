@@ -1,13 +1,18 @@
 {
-  "Version": 1,
+  "Version": 2,
   "Startup": false,
   "ShowTrayIcon": true,
   "LogLevel": "Info",
-  "Hotkeys": [
+  "Workflows": [
     {
+      "Id": "korean-toggle",
       "Name": "Korean toggle",
-      "Keys": "Ctrl+Alt+Shift+K",
       "Mode": "toggle",
+      "Triggers": [
+        {
+          "Keys": "Ctrl+Alt+Shift+K"
+        }
+      ],
       "Target": "korean",
       "ReturnBehavior": "alwaysSpecificLayout",
       "Fallback": "us-intl"
