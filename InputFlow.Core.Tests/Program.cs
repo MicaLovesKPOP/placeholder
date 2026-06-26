@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using InputFlow.Core;
 
 var tests = new (string Name, Action Test)[]
@@ -14,7 +15,10 @@ var tests = new (string Name, Action Test)[]
     ("MalformedJsonReturnsLoadErrors", MalformedJsonReturnsLoadErrors),
     ("LegacyLoadFallsBackToDefaultsOnInvalidConfig", LegacyLoadFallsBackToDefaultsOnInvalidConfig),
     ("NullCollectionsAreNormalized", NullCollectionsAreNormalized),
-    ("UnsupportedWorkflowModeIsRejected", UnsupportedWorkflowModeIsRejected)
+    ("UnsupportedWorkflowModeIsRejected", UnsupportedWorkflowModeIsRejected),
+    ("ProfileMatchReportsExplainCompatibilityFallback", ProfileMatchReportsExplainCompatibilityFallback),
+    ("ProfileMatchReportsExplainCandidateFailures", ProfileMatchReportsExplainCandidateFailures),
+    ("DiagnosticsReportIncludesProfileInventoryAndMatches", DiagnosticsReportIncludesProfileInventoryAndMatches)
 };
 
 int failed = 0;
@@ -210,6 +214,57 @@ static void UnsupportedWorkflowModeIsRejected()
     AssertContains(errors, "Mode 'hold' is not supported");
 }
 
+static void ProfileMatchReportsExplainCompatibilityFallback()
+{
+    var installed = CreateInstalledProfiles();
+    var definitions = new[]
+    {
+        new ProfileDefinition
+        {
+            Id = "us-intl",
+            Match = new ProfileMatch { LanguageTag = "en-NL" }
+        }
+    };
+
+    var report = InputProfileManager.EvaluateProfileMatches(installed, definitions).Single();
+
+    AssertTrue(report.IsMatch, "en-NL should match US-International compatibility fallback.");
+    AssertTrue(report.UsedCompatibilityFallback, "Expected compatibility fallback to be reported.");
+    AssertEqual("00020409", report.MatchedProfile!.KLID, "Fallback should select US-International KLID.");
+    AssertContains(new[] { report.Summary }, "compatibility fallback");
+}
+
+static void ProfileMatchReportsExplainCandidateFailures()
+{
+    var installed = CreateInstalledProfiles();
+    var definitions = new[]
+    {
+        new ProfileDefinition
+        {
+            Id = "missing",
+            Match = new ProfileMatch { LanguageTag = "ja-JP", KLID = "00000411" }
+        }
+    };
+
+    var report = InputProfileManager.EvaluateProfileMatches(installed, definitions).Single();
+
+    AssertFalse(report.IsMatch, "ja-JP profile should not match the fake installed set.");
+    AssertTrue(report.Candidates.Count > 0, "Expected candidate diagnostics.");
+    AssertContains(report.Candidates.Select(candidate => candidate.Reason), "LanguageTag expected ja-JP");
+}
+
+static void DiagnosticsReportIncludesProfileInventoryAndMatches()
+{
+    var config = CreateKnownWorkingWorkflowConfig();
+    var report = InputFlowDiagnostics.BuildReport(config, CreateInstalledProfiles(), "C:\\InputFlow\\inputflow.json", "C:\\InputFlow\\inputflow.log");
+
+    AssertContains(new[] { report }, "InputFlow diagnostics");
+    AssertContains(new[] { report }, "Configured workflows: 1");
+    AssertContains(new[] { report }, "Installed input profiles: 2");
+    AssertContains(new[] { report }, "Configured profile match reports: 2");
+    AssertContains(new[] { report }, "compatibility fallback");
+}
+
 static InputFlowConfig CreateKnownWorkingWorkflowConfig()
 {
     return new InputFlowConfig
@@ -249,6 +304,15 @@ static InputFlowConfig CreateKnownWorkingWorkflowConfig()
                 Fallback = "us-intl"
             }
         }
+    };
+}
+
+static IReadOnlyList<InputProfile> CreateInstalledProfiles()
+{
+    return new[]
+    {
+        new InputProfile(new IntPtr(0x00020409), "00020409", "English (United States)", isIme: true, languageTag: "en-US"),
+        new InputProfile(new IntPtr(0xE0010412L), "E0010412", "Korean", isIme: true, languageTag: "ko-KR")
     };
 }
 

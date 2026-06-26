@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Runtime.InteropServices;
+using System.Linq;
 using InputFlow.Windows;
 
 namespace InputFlow.Core
@@ -26,32 +26,73 @@ namespace InputFlow.Core
             var profiles = new List<InputProfile>(count);
             foreach (var hkl in list)
             {
-                // Derive an 8-character KLID from the HKL.
                 string klid = ((ulong)hkl.ToInt64() & 0xFFFFFFFF).ToString("X8");
-                // Friendly name is unknown; use the LANGID display name as a placeholder.
-                string friendlyName = GetDefaultLanguageName(hkl);
+                string? languageTag = GetLanguageTag(hkl);
+                string friendlyName = GetDefaultLanguageName(hkl, languageTag);
                 bool isIme = IsImeLayout(hkl);
-                profiles.Add(new InputProfile(hkl, klid, friendlyName, isIme));
+                profiles.Add(new InputProfile(hkl, klid, friendlyName, isIme, languageTag));
             }
             return profiles;
+        }
+
+        /// <summary>
+        /// Returns a stable single-line profile description for logs, diagnostics, and future picker UI.
+        /// </summary>
+        public static string FormatProfile(InputProfile profile)
+        {
+            return $"{profile.FriendlyName} KLID={profile.KLID} HKL=0x{profile.HKL.ToInt64():X8} Lang={GetProfileLanguageTag(profile)} LANGID=0x{profile.LangId:X4} IsIme={profile.IsIme}";
+        }
+
+        /// <summary>
+        /// Returns the best available language tag for a profile.
+        /// </summary>
+        public static string GetProfileLanguageTag(InputProfile profile)
+        {
+            if (!string.IsNullOrWhiteSpace(profile.LanguageTag))
+            {
+                return profile.LanguageTag;
+            }
+
+            return GetLanguageTagFromLangId(profile.LangId) ?? profile.LangId.ToString("X4");
         }
 
         /// <summary>
         /// Attempts to retrieve a human readable name for a given keyboard layout.
         /// Falls back to the locale name if a more specific description is unavailable.
         /// </summary>
-        private static string GetDefaultLanguageName(IntPtr hkl)
+        private static string GetDefaultLanguageName(IntPtr hkl, string? languageTag)
         {
-            // Obtain the LANGID from the HKL.
+            if (!string.IsNullOrWhiteSpace(languageTag))
+            {
+                try
+                {
+                    return CultureInfo.GetCultureInfo(languageTag).DisplayName;
+                }
+                catch (CultureNotFoundException)
+                {
+                    // Fall through to LANGID text.
+                }
+            }
+
             uint langId = (uint)((ulong)hkl.ToInt64() & 0xFFFF);
+            return GetLanguageTagFromLangId(langId) ?? langId.ToString("X4");
+        }
+
+        private static string? GetLanguageTag(IntPtr hkl)
+        {
+            uint langId = (uint)((ulong)hkl.ToInt64() & 0xFFFF);
+            return GetLanguageTagFromLangId(langId);
+        }
+
+        private static string? GetLanguageTagFromLangId(uint langId)
+        {
             try
             {
-                var culture = new CultureInfo((int)langId);
-                return culture.DisplayName;
+                return new CultureInfo((int)langId).Name;
             }
-            catch
+            catch (CultureNotFoundException)
             {
-                return langId.ToString("X4");
+                return null;
             }
         }
 
@@ -98,77 +139,101 @@ namespace InputFlow.Core
         public static Dictionary<string, InputProfile> MatchProfiles(IReadOnlyList<InputProfile> installed, IEnumerable<ProfileDefinition> definitions)
         {
             var result = new Dictionary<string, InputProfile>(StringComparer.OrdinalIgnoreCase);
-            foreach (var def in definitions)
+            foreach (var report in EvaluateProfileMatches(installed, definitions))
             {
-                var match = MatchProfile(installed, def);
-                if (match != null)
+                if (report.MatchedProfile != null)
                 {
-                    result[def.Id] = match;
+                    result[report.ProfileId] = report.MatchedProfile;
                 }
             }
             return result;
         }
 
         /// <summary>
-        /// Attempts to match a single profile definition to an installed profile.
-        /// All configured criteria are matched case-insensitively. A second-pass
-        /// compatibility fallback maps the known English (Netherlands) /
-        /// US-International workflow to KLID 00020409 when Windows exposes the
-        /// layout under the en-US LANGID.
+        /// Evaluates configured profile definitions against installed profiles and returns diagnostics.
         /// </summary>
-        private static InputProfile? MatchProfile(IReadOnlyList<InputProfile> installed, ProfileDefinition def)
+        public static IReadOnlyList<ProfileMatchReport> EvaluateProfileMatches(IReadOnlyList<InputProfile> installed, IEnumerable<ProfileDefinition> definitions)
         {
-            var criteria = def.Match ?? new ProfileMatch();
+            var reports = new List<ProfileMatchReport>();
+            foreach (var definition in definitions)
+            {
+                reports.Add(EvaluateProfileMatch(installed, definition));
+            }
+
+            return reports;
+        }
+
+        private static ProfileMatchReport EvaluateProfileMatch(IReadOnlyList<InputProfile> installed, ProfileDefinition definition)
+        {
+            var criteria = definition.Match ?? new ProfileMatch();
+            var candidates = new List<ProfileCandidateMatch>();
 
             foreach (var profile in installed)
             {
-                if (MatchesCriteria(profile, criteria))
+                var candidate = EvaluateCandidate(profile, criteria);
+                candidates.Add(candidate);
+                if (candidate.IsMatch)
                 {
-                    return profile;
+                    return new ProfileMatchReport(
+                        definition.Id,
+                        criteria,
+                        candidate.Profile,
+                        "Matched all configured criteria.",
+                        usedCompatibilityFallback: false,
+                        candidates);
                 }
             }
 
-            return MatchEnglishNetherlandsUsInternationalCompatibility(installed, criteria);
+            InputProfile? compatibilityMatch = MatchEnglishNetherlandsUsInternationalCompatibility(installed, criteria);
+            if (compatibilityMatch != null)
+            {
+                return new ProfileMatchReport(
+                    definition.Id,
+                    criteria,
+                    compatibilityMatch,
+                    "Matched English (Netherlands) / US-International compatibility fallback by KLID 00020409.",
+                    usedCompatibilityFallback: true,
+                    candidates);
+            }
+
+            return new ProfileMatchReport(
+                definition.Id,
+                criteria,
+                matchedProfile: null,
+                summary: "No installed profile matched all configured criteria.",
+                usedCompatibilityFallback: false,
+                candidates);
         }
 
-        private static bool MatchesCriteria(InputProfile profile, ProfileMatch criteria)
+        private static ProfileCandidateMatch EvaluateCandidate(InputProfile profile, ProfileMatch criteria)
         {
-            if (!string.IsNullOrEmpty(criteria.KLID))
+            var failures = new List<string>();
+
+            if (!string.IsNullOrEmpty(criteria.KLID) && !string.Equals(profile.KLID, NormalizeKlid(criteria.KLID), StringComparison.OrdinalIgnoreCase))
             {
-                if (!string.Equals(profile.KLID, NormalizeKlid(criteria.KLID), StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
+                failures.Add($"KLID expected {NormalizeKlid(criteria.KLID)} got {profile.KLID}");
             }
 
             if (!string.IsNullOrEmpty(criteria.LanguageTag))
             {
-                try
+                string actualLanguageTag = GetProfileLanguageTag(profile);
+                if (!string.Equals(actualLanguageTag, criteria.LanguageTag, StringComparison.OrdinalIgnoreCase))
                 {
-                    // Derive culture name from LANGID. CultureName might be like "en-US".
-                    var culture = new CultureInfo((int)profile.LangId);
-                    if (!string.Equals(culture.Name, criteria.LanguageTag, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return false;
-                    }
-                }
-                catch
-                {
-                    return false;
+                    failures.Add($"LanguageTag expected {criteria.LanguageTag} got {actualLanguageTag}");
                 }
             }
 
             if (!ContainsProfileText(profile, criteria.LayoutNameContains))
             {
-                return false;
+                failures.Add($"LayoutNameContains expected '{criteria.LayoutNameContains}' not found in '{profile.FriendlyName}' or '{profile.KLID}'");
             }
 
             if (!ContainsProfileText(profile, criteria.ProfileNameContains))
             {
-                return false;
+                failures.Add($"ProfileNameContains expected '{criteria.ProfileNameContains}' not found in '{profile.FriendlyName}' or '{profile.KLID}'");
             }
 
-            return true;
+            return new ProfileCandidateMatch(profile, failures.Count == 0, failures.Count == 0 ? "Matched all configured criteria." : string.Join("; ", failures));
         }
 
         private static bool ContainsProfileText(InputProfile profile, string? expected)
@@ -217,5 +282,52 @@ namespace InputFlow.Core
 
             return value.Length < 8 ? value.PadLeft(8, '0').ToUpperInvariant() : value.ToUpperInvariant();
         }
+    }
+
+    /// <summary>
+    /// Diagnostic result for one configured profile definition.
+    /// </summary>
+    public sealed class ProfileMatchReport
+    {
+        public ProfileMatchReport(
+            string profileId,
+            ProfileMatch criteria,
+            InputProfile? matchedProfile,
+            string summary,
+            bool usedCompatibilityFallback,
+            IReadOnlyList<ProfileCandidateMatch> candidates)
+        {
+            ProfileId = profileId;
+            Criteria = criteria;
+            MatchedProfile = matchedProfile;
+            Summary = summary;
+            UsedCompatibilityFallback = usedCompatibilityFallback;
+            Candidates = candidates;
+        }
+
+        public string ProfileId { get; }
+        public ProfileMatch Criteria { get; }
+        public InputProfile? MatchedProfile { get; }
+        public string Summary { get; }
+        public bool UsedCompatibilityFallback { get; }
+        public IReadOnlyList<ProfileCandidateMatch> Candidates { get; }
+        public bool IsMatch => MatchedProfile != null;
+    }
+
+    /// <summary>
+    /// Diagnostic result for one installed profile considered against one configured profile.
+    /// </summary>
+    public sealed class ProfileCandidateMatch
+    {
+        public ProfileCandidateMatch(InputProfile profile, bool isMatch, string reason)
+        {
+            Profile = profile;
+            IsMatch = isMatch;
+            Reason = reason;
+        }
+
+        public InputProfile Profile { get; }
+        public bool IsMatch { get; }
+        public string Reason { get; }
     }
 }

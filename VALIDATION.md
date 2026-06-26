@@ -30,7 +30,7 @@ Run package-free core config and workflow validation tests:
 dotnet run --project .\InputFlow.Core.Tests\InputFlow.Core.Tests.csproj -c Release
 ```
 
-These tests cover config parsing, validation, v1 hotkey migration, v2 workflow validation, and representative cycle workflow rules. They do not replace manual Windows IME testing.
+These tests cover config parsing, validation, v1 hotkey migration, v2 workflow validation, profile match diagnostics, and representative cycle workflow rules. They do not replace manual Windows IME testing.
 
 ## Publish Command
 
@@ -91,6 +91,25 @@ Expected after switching to Korean: Hangul/native mode enabled without blind tog
 
 For v2 workflow changes, also test a direct `switchTo` workflow and a `cycle` workflow when the relevant installed Windows profiles are available.
 
+## Diagnostics Copy Test
+
+From the tray menu, choose:
+
+```text
+Copy Diagnostics
+```
+
+Expected clipboard content includes:
+
+```text
+InputFlow diagnostics
+Configured workflows:
+Installed input profiles:
+Configured profile match reports:
+```
+
+When profile matching is involved, inspect the copied report for selected profiles and candidate match reasons. This is the preferred bug-report payload for layout or IME matching problems.
+
 ## Log Inspection
 
 The runtime log is expected next to the executable unless implementation changes.
@@ -112,6 +131,8 @@ Useful already-active pattern:
 ```text
 Default IME window Hangul/native set attempt. Open 1 -> 1, conversion 1 -> 1 requested=1.
 ```
+
+Profile matching diagnostics should list installed profiles and configured profile match results. Unmatched configured profiles should include per-candidate reasons.
 
 ## GitHub Actions
 
@@ -157,7 +178,8 @@ After any change touching input switching, profile matching, hotkeys, workflows,
 5. Test in Notepad:
    - English Netherlands -> Korean + Hangul/native
    - Korean -> English Netherlands
-6. Inspect `inputflow.log`.
+6. Use Copy Diagnostics from the tray menu and inspect the copied report.
+7. Inspect `inputflow.log`.
 
 ## Validation Limitations
 
@@ -170,3 +192,4 @@ Manual Windows testing is required for changes to:
 - input profile switching
 - Korean Hangul/native mode
 - foreground/elevated app handling
+- clipboard diagnostics from the tray process

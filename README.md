@@ -58,6 +58,19 @@ If `InputFlow.exe` is not present, inspect the publish folder:
 Get-ChildItem .\publish\InputFlow-win-x64\*.exe
 ```
 
+## Tray Menu
+
+The tray menu includes:
+
+- Open Config
+- Open Log
+- Copy Diagnostics
+- Reload Config
+- Pause/Resume
+- Exit
+
+`Copy Diagnostics` copies a text report with config summary, workflows, installed input profiles, and configured-profile match results. This is the preferred information to paste into bug reports when a Windows layout or IME does not match as expected.
+
 ## Configuration
 
 On first run, InputFlow creates `inputflow.json` next to the executable.
