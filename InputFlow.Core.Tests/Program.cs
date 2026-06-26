@@ -312,7 +312,7 @@ static IReadOnlyList<InputProfile> CreateInstalledProfiles()
     return new[]
     {
         new InputProfile(new IntPtr(0x00020409), "00020409", "English (United States)", isIme: true, languageTag: "en-US"),
-        new InputProfile(new IntPtr(0xE0010412), "E0010412", "Korean", isIme: true, languageTag: "ko-KR")
+        new InputProfile(new IntPtr(0xE0010412L), "E0010412", "Korean", isIme: true, languageTag: "ko-KR")
     };
 }
 
