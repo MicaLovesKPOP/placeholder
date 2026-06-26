@@ -63,7 +63,7 @@ namespace InputFlow.App
                         new ProfileDefinition
                         {
                             Id = "us-intl",
-                            Match = new ProfileMatch { KLID = "00020409" }
+                            Match = new ProfileMatch { LanguageTag = "nl-NL" }
                         },
                         new ProfileDefinition
                         {
