@@ -74,18 +74,18 @@ Expected workflow:
 
 ```text
 Start in English (Netherlands) / United States-International
-Press Ctrl+Alt+Shift+K
+Press Ctrl+Alt+Shift+K or the configured trigger
 Expected: Korean Microsoft IME + Hangul/native mode
 
-Press Ctrl+Alt+Shift+K again
-Expected: English (Netherlands) / United States-International
+Press the configured trigger again
+Expected: English (Netherlands) / United States-International, or the configured fallback/previous profile
 ```
 
 Also test:
 
 ```text
 Start in Korean Latin/A mode if possible
-Press Ctrl+Alt+Shift+K from the fallback side
+Press the configured trigger from the fallback side
 Expected after switching to Korean: Hangul/native mode enabled without blind toggle behavior
 ```
 
@@ -136,16 +136,55 @@ Profile matching diagnostics should list installed profiles and configured profi
 
 ## GitHub Actions
 
-The workflow should build the app project directly and run core tests:
+The build workflow should build the app project directly and run core tests:
 
 ```powershell
 dotnet restore .\InputFlow.App\InputFlow.App.csproj
 dotnet restore .\InputFlow.Core.Tests\InputFlow.Core.Tests.csproj
 dotnet build .\InputFlow.App\InputFlow.App.csproj -c Release --no-restore
 dotnet run --project .\InputFlow.Core.Tests\InputFlow.Core.Tests.csproj -c Release --no-restore
+dotnet publish .\InputFlow.App\InputFlow.App.csproj -c Release -r win-x64 --self-contained false -o .\publish\InputFlow-win-x64
 ```
 
 Do not assume `InputFlow.sln` exists unless verified.
+
+## Release Validation
+
+Every staged GitHub Release must satisfy [RELEASE_PLAN.md](RELEASE_PLAN.md).
+
+Before pushing a release tag:
+
+1. Confirm the target commit is on `main`.
+2. Confirm GitHub Actions passed on that commit.
+3. Confirm any stage-specific manual Windows tests are complete.
+4. Confirm README, ROADMAP, VALIDATION, and release notes describe the actual behavior.
+5. Confirm known limitations are not hidden.
+
+Release tags use versions such as:
+
+```text
+v0.1.0
+v0.2.0
+v1.0.0
+```
+
+Pushing a tag matching `v*` runs `.github/workflows/release.yml`. That workflow should:
+
+1. Restore dependencies.
+2. Build the app.
+3. Run core tests.
+4. Publish Windows x64 output.
+5. Package a portable ZIP named like `InputFlow-v0.2.0-win-x64.zip`.
+6. Upload the ZIP as a workflow artifact.
+7. Create a GitHub Release with the ZIP attached.
+
+After the release workflow finishes:
+
+1. Download the release ZIP from GitHub Releases.
+2. Extract it to a clean folder.
+3. Confirm `InputFlow.exe` exists.
+4. Run the same manual functional test relevant to the release stage.
+5. Use `Copy Diagnostics` and inspect the report if input-profile behavior changed.
 
 ## Expected Warning State
 

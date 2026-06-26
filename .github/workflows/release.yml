@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore app
+        run: dotnet restore .\InputFlow.App\InputFlow.App.csproj
+
+      - name: Restore core tests
+        run: dotnet restore .\InputFlow.Core.Tests\InputFlow.Core.Tests.csproj
+
+      - name: Build
+        run: dotnet build .\InputFlow.App\InputFlow.App.csproj -c Release --no-restore
+
+      - name: Run core tests
+        run: dotnet run --project .\InputFlow.Core.Tests\InputFlow.Core.Tests.csproj -c Release --no-restore
+
+      - name: Publish
+        run: dotnet publish .\InputFlow.App\InputFlow.App.csproj -c Release -r win-x64 --self-contained false -o .\publish\InputFlow-win-x64
+
+      - name: Package portable zip
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          $zipName = "InputFlow-$version-win-x64.zip"
+          $zipPath = Join-Path "publish" $zipName
+          Compress-Archive -Path .\publish\InputFlow-win-x64\* -DestinationPath $zipPath -Force
+          "ZIP_NAME=$zipName" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "ZIP_PATH=$zipPath" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ZIP_NAME }}
+          path: ${{ env.ZIP_PATH }}
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" "$env:ZIP_PATH" --repo "${{ github.repository }}" --title "InputFlow ${{ github.ref_name }}" --generate-notes --verify-tag

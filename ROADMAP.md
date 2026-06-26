@@ -4,7 +4,7 @@ Roadmap for **InputFlow**.
 
 InputFlow is intended to become a polished Windows utility for bilingual and multilingual power users, not a one-off English/Korean helper. The current tested workflow is the seed case, but product decisions should generalize to people who use several Windows language profiles, IMEs, keyboard layouts, and per-app habits.
 
-This roadmap is ordered to avoid waste: build stable product semantics first, then UI and release polish on top of those semantics.
+This roadmap is ordered to avoid waste: build stable product semantics first, then UI and release polish on top of those semantics. Stage gates, version lines, and GitHub Release requirements are tracked in [RELEASE_PLAN.md](RELEASE_PLAN.md).
 
 ## Product Target
 
@@ -20,7 +20,7 @@ A complete product should support:
 6. Safe IME mode entry, such as Korean Hangul/native mode without blind toggle keys.
 7. Per-app rules and exclusions for tools, games, terminals, remote desktop, and VMs.
 8. A settings UI so normal use does not require hand-editing JSON.
-9. Installer, portable release, update story, diagnostics, and recovery paths.
+9. Installer, release packaging, update story, diagnostics, and recovery paths.
 
 ## Design Principles
 
