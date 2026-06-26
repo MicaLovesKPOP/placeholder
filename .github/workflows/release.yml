@@ -57,4 +57,24 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" "$env:ZIP_PATH" --repo "${{ github.repository }}" --title "InputFlow ${{ github.ref_name }}" --generate-notes --verify-tag
+          $version = "${{ github.ref_name }}"
+          $notesPath = Join-Path "docs\releases" "$version.md"
+          $releaseArgs = @(
+            "release",
+            "create",
+            $version,
+            $env:ZIP_PATH,
+            "--repo",
+            "${{ github.repository }}",
+            "--title",
+            "InputFlow $version",
+            "--verify-tag"
+          )
+
+          if (Test-Path $notesPath) {
+            $releaseArgs += @("--notes-file", $notesPath)
+          } else {
+            $releaseArgs += "--generate-notes"
+          }
+
+          gh @releaseArgs

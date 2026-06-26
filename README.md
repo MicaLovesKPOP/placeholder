@@ -18,11 +18,11 @@ InputFlow is currently a working technical preview.
 
 The validated seed workflow is:
 
-- switch from Dutch / United States-International to Korean Microsoft IME
-- switch from Korean back to Dutch / United States-International
+- switch from Dutch (Netherlands) / United States-International to Korean Microsoft IME
+- switch from Korean back to Dutch (Netherlands) / United States-International
 - set Korean Microsoft IME to Hangul/native mode without blindly toggling the Hangul key
 
-The next product goal is a first multilingual preview that is useful beyond one hardcoded setup: first-run setup, installed-profile picking, stable per-user config, and workflow configuration for regular layouts and IMEs.
+The `v0.1.x` line is a technical preview for that seed workflow and nearby manual-JSON configurations. The next product goal is a first multilingual preview that is useful beyond one seeded setup: first-run setup, installed-profile picking, settings UI, and workflow configuration for regular layouts and IMEs.
 
 See [RELEASE_PLAN.md](RELEASE_PLAN.md) for staged release gates and [ROADMAP.md](ROADMAP.md) for the broader product roadmap.
 
@@ -82,7 +82,7 @@ Get-ChildItem .\publish\InputFlow-win-x64\*.exe
 
 ## Releases
 
-Release tags use `v*` versions, such as `v0.2.0`.
+Release tags use `v*` versions, such as `v0.1.0` or `v0.2.0`.
 
 Pushing a version tag runs the release workflow, rebuilds and tests the app, publishes a framework-dependent Windows x64 build, packages it as a portable ZIP, and creates a GitHub Release with the ZIP attached.
 
@@ -119,6 +119,10 @@ samples/inputflow.sample.json
 ```
 
 Config version 2 uses `Workflows`. Existing version 1 configs with `Hotkeys` are migrated in memory when loaded, so existing working configs should continue to run.
+
+The generated `v0.1.x` default config is a seed for Dutch (Netherlands) / United States-International plus Korean Microsoft IME. If your installed profiles differ, use tray `Copy Diagnostics`, inspect the installed profile list, and adjust `Profiles` in `%APPDATA%\InputFlow\inputflow.json`.
+
+The default trigger is `RightAlt`. When used as a single-key trigger, InputFlow suppresses that key while running, so it also replaces normal AltGr behavior for layouts that use AltGr. Change the trigger if you need AltGr for typing characters.
 
 Example toggle workflow:
 
@@ -170,7 +174,8 @@ Example profile configuration:
 {
   "Id": "us-intl",
   "Match": {
-    "LanguageTag": "en-NL",
+    "LanguageTag": "nl-NL",
+    "KLID": null,
     "LayoutNameContains": null,
     "ProfileNameContains": null
   },
@@ -212,7 +217,9 @@ samples               Example configuration files
 
 - There is no settings window yet.
 - First-run setup is not implemented yet.
+- There is no installer or auto-update flow yet.
 - Hold-to-switch workflow mode is not implemented yet.
+- IME mode automation is only intentionally supported for Korean Hangul/native mode so far.
 - Some Windows language/input setups may require more exact TSF profile matching.
 - Elevated apps may not accept input-method changes from a non-elevated InputFlow process.
 - Hotkeys already used by Windows or another app cannot be registered.

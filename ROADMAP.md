@@ -40,21 +40,24 @@ Already achieved:
 
 1. C#/.NET 8 Windows tray app.
 2. Config-driven profile definitions and hotkeys.
-3. Tested Dutch US-International <-> Korean Microsoft IME workflow.
-4. Korean target enters Hangul/native mode through setter-style IME calls.
-5. Exact installed-profile matching using Windows-reported HKL/KLID data where available.
-6. Tray actions for opening config/log, reload, pause/resume, and exit.
-7. Debounced config reloads and better startup/profile diagnostics.
-8. Optional single-key trigger support, including a tested RightAlt workflow.
-9. GitHub Actions build and x64 publish artifact.
+3. Versioned config schema with v1 hotkey migration to v2 workflows.
+4. Tested Dutch (Netherlands) / US-International <-> Korean Microsoft IME workflow.
+5. Korean target enters Hangul/native mode through setter-style IME calls.
+6. Exact installed-profile matching using Windows-reported HKL/KLID data where available.
+7. Stable per-user config and log paths with legacy config migration.
+8. Tray actions for opening config/log, copying diagnostics, reload, pause/resume, and exit.
+9. Debounced config reloads and better startup/profile diagnostics.
+10. Optional single-key trigger support, including a tested RightAlt workflow.
+11. Single-instance guard for the tray app.
+12. GitHub Actions build, x64 publish artifact, and tag-driven release ZIP workflow.
 
 Still missing for a finished product:
 
 1. Settings UI.
-2. Versioned config schema and migration.
-3. First-class multi-profile workflows beyond the current toggle model.
+2. First-run setup.
+3. First-class multi-profile workflows beyond toggle, direct switch, and basic cycle.
 4. Profile discovery/picker with exact Windows identity.
-5. Installer, release packaging, and update UX.
+5. Installer and update UX.
 6. Broader validation and automated tests.
 7. Branding, icon, accessibility, and public-facing documentation polish.
 
