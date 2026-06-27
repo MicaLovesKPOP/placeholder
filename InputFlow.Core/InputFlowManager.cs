@@ -541,7 +541,7 @@ namespace InputFlow.Core
                 }
 
                 bool openBefore = InputApis.ImmGetOpenStatus(imc);
-                int desired = conversion | InputApis.IME_CMODE_NATIVE;
+                int desired = InputApis.IME_CMODE_NATIVE;
 
                 if (!openBefore && !InputApis.ImmSetOpenStatus(imc, true))
                 {
@@ -592,7 +592,7 @@ namespace InputFlow.Core
             IntPtr conversionBefore = InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_GETCONVERSIONMODE, IntPtr.Zero);
 
             int currentConversion = unchecked((int)conversionBefore.ToInt64());
-            int desiredConversion = currentConversion | InputApis.IME_CMODE_NATIVE;
+            int desiredConversion = InputApis.IME_CMODE_NATIVE;
             bool alreadyOpenNative = openBefore.ToInt64() != 0 && (currentConversion & InputApis.IME_CMODE_NATIVE) != 0;
 
             if (alreadyOpenNative)
