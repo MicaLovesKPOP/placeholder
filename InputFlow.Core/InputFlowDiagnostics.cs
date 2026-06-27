@@ -14,7 +14,8 @@ namespace InputFlow.Core
             InputFlowConfig config,
             IReadOnlyList<InputProfile> installedProfiles,
             string configPath,
-            string logPath)
+            string logPath,
+            string? runtimeDetails = null)
         {
             var builder = new StringBuilder();
             builder.AppendLine("InputFlow diagnostics");
@@ -30,6 +31,11 @@ namespace InputFlow.Core
             AppendWorkflows(builder, config.Workflows);
             AppendProfiles(builder, installedProfiles);
             AppendMatchReports(builder, InputProfileManager.EvaluateProfileMatches(installedProfiles, config.Profiles));
+            if (!string.IsNullOrWhiteSpace(runtimeDetails))
+            {
+                builder.AppendLine();
+                builder.Append(runtimeDetails);
+            }
 
             return builder.ToString();
         }

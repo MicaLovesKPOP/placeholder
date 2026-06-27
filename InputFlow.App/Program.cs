@@ -230,7 +230,7 @@ namespace InputFlow.App
             {
                 try
                 {
-                    Clipboard.SetText(InputFlowDiagnostics.BuildReport(_config, _installedProfiles, _configPath, _logPath));
+                    Clipboard.SetText(InputFlowDiagnostics.BuildReport(_config, _installedProfiles, _configPath, _logPath, _manager.BuildRuntimeDiagnostics()));
                     _logger.Info("Copied diagnostics to clipboard.");
                 }
                 catch (Exception ex)
