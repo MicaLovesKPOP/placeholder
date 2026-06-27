@@ -593,6 +593,13 @@ namespace InputFlow.Core
 
             int currentConversion = unchecked((int)conversionBefore.ToInt64());
             int desiredConversion = currentConversion | InputApis.IME_CMODE_NATIVE;
+            bool alreadyOpenNative = openBefore.ToInt64() != 0 && (currentConversion & InputApis.IME_CMODE_NATIVE) != 0;
+
+            if (alreadyOpenNative)
+            {
+                InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_SETOPENSTATUS, IntPtr.Zero);
+                System.Threading.Thread.Sleep(20);
+            }
 
             InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_SETOPENSTATUS, (IntPtr)1);
             InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_SETCONVERSIONMODE, (IntPtr)desiredConversion);
@@ -602,7 +609,7 @@ namespace InputFlow.Core
             IntPtr openAfter = InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_GETOPENSTATUS, IntPtr.Zero);
             IntPtr conversionAfter = InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_GETCONVERSIONMODE, IntPtr.Zero);
 
-            _logger.Info($"Default IME window Hangul/native set attempt. Open {openBefore.ToInt64()} -> {openAfter.ToInt64()}, conversion {currentConversion} -> {conversionAfter.ToInt64()} requested={desiredConversion}.");
+            _logger.Info($"Default IME window Hangul/native set attempt. Open {openBefore.ToInt64()} -> {openAfter.ToInt64()}, conversion {currentConversion} -> {conversionAfter.ToInt64()} requested={desiredConversion} refreshed={alreadyOpenNative}.");
 
             return (conversionAfter.ToInt64() & InputApis.IME_CMODE_NATIVE) != 0;
         }
