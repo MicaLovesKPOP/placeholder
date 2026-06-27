@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using InputFlow.Windows;
 
 namespace InputFlow.Core
@@ -296,10 +297,7 @@ namespace InputFlow.Core
                     return false;
                 }
 
-                if (foregroundWindow != IntPtr.Zero)
-                {
-                    InputApis.PostMessage(foregroundWindow, InputApis.WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, hkl);
-                }
+                RequestInputLanguageChange(foregroundWindow, hkl);
 
                 InputApis.ActivateKeyboardLayout(hkl, InputApis.KLF_SETFORPROCESS);
                 System.Threading.Thread.Sleep(200);
@@ -311,10 +309,7 @@ namespace InputFlow.Core
                     return true;
                 }
 
-                if (foregroundWindow != IntPtr.Zero)
-                {
-                    InputApis.PostMessage(foregroundWindow, InputApis.WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, hkl);
-                }
+                RequestInputLanguageChange(foregroundWindow, hkl);
 
                 InputApis.ActivateKeyboardLayout(hkl, InputApis.KLF_SETFORPROCESS);
                 System.Threading.Thread.Sleep(300);
@@ -337,6 +332,58 @@ namespace InputFlow.Core
             {
                 _logger.Error($"Exception during switch: {ex}");
                 return false;
+            }
+        }
+
+        private void RequestInputLanguageChange(IntPtr foregroundWindow, IntPtr hkl)
+        {
+            if (foregroundWindow == IntPtr.Zero)
+            {
+                return;
+            }
+
+            var requestedWindows = new HashSet<IntPtr>();
+            uint threadId = InputApis.GetWindowThreadProcessId(foregroundWindow, out _);
+            var gui = new InputApis.GUITHREADINFO();
+            gui.cbSize = System.Runtime.InteropServices.Marshal.SizeOf<InputApis.GUITHREADINFO>();
+
+            if (InputApis.GetGUIThreadInfo(threadId, ref gui) && gui.hwndFocus != IntPtr.Zero)
+            {
+                RequestInputLanguageChangeForWindow(gui.hwndFocus, hkl, requestedWindows, "focused");
+            }
+
+            RequestInputLanguageChangeForWindow(foregroundWindow, hkl, requestedWindows, "foreground");
+        }
+
+        private void RequestInputLanguageChangeForWindow(IntPtr window, IntPtr hkl, HashSet<IntPtr> requestedWindows, string label)
+        {
+            if (window == IntPtr.Zero || !requestedWindows.Add(window))
+            {
+                return;
+            }
+
+            IntPtr sendResult = InputApis.SendMessageTimeout(
+                window,
+                InputApis.WM_INPUTLANGCHANGEREQUEST,
+                IntPtr.Zero,
+                hkl,
+                InputApis.SMTO_ABORTIFHUNG,
+                150,
+                out _);
+
+            if (sendResult != IntPtr.Zero)
+            {
+                _logger.Info($"Sent synchronous input-language change request to {label} window {FormatWindowHandle(window)}.");
+                return;
+            }
+
+            if (InputApis.PostMessage(window, InputApis.WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, hkl))
+            {
+                _logger.Warning($"Synchronous input-language change request to {label} window {FormatWindowHandle(window)} timed out or failed; posted async fallback.");
+            }
+            else
+            {
+                _logger.Warning($"Input-language change request to {label} window {FormatWindowHandle(window)} failed.");
             }
         }
 
@@ -420,6 +467,7 @@ namespace InputFlow.Core
             try
             {
                 System.Threading.Thread.Sleep(120);
+                LogRuntimeInputState("before Hangul enter mode");
 
                 IntPtr foregroundWindow = InputApis.GetForegroundWindow();
                 if (foregroundWindow == IntPtr.Zero)
@@ -441,24 +489,29 @@ namespace InputFlow.Core
 
                 if (TrySetHangulViaImeContext(focusedWindow))
                 {
+                    LogRuntimeInputState("after Hangul enter mode via focused IME context");
                     return;
                 }
 
                 if (focusedWindow != foregroundWindow && TrySetHangulViaImeContext(foregroundWindow))
                 {
+                    LogRuntimeInputState("after Hangul enter mode via foreground IME context");
                     return;
                 }
 
                 if (TrySetHangulViaDefaultImeWindow(focusedWindow))
                 {
+                    LogRuntimeInputState("after Hangul enter mode via focused default IME window");
                     return;
                 }
 
                 if (focusedWindow != foregroundWindow && TrySetHangulViaDefaultImeWindow(foregroundWindow))
                 {
+                    LogRuntimeInputState("after Hangul enter mode via foreground default IME window");
                     return;
                 }
 
+                LogRuntimeInputState("after failed Hangul enter mode");
                 _logger.Warning("Cannot set Hangul mode safely: no usable IME context or default IME window.");
             }
             catch (Exception ex)
@@ -488,7 +541,7 @@ namespace InputFlow.Core
                 }
 
                 bool openBefore = InputApis.ImmGetOpenStatus(imc);
-                int desired = conversion | InputApis.IME_CMODE_NATIVE;
+                int desired = InputApis.IME_CMODE_NATIVE;
 
                 if (!openBefore && !InputApis.ImmSetOpenStatus(imc, true))
                 {
@@ -539,7 +592,14 @@ namespace InputFlow.Core
             IntPtr conversionBefore = InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_GETCONVERSIONMODE, IntPtr.Zero);
 
             int currentConversion = unchecked((int)conversionBefore.ToInt64());
-            int desiredConversion = currentConversion | InputApis.IME_CMODE_NATIVE;
+            int desiredConversion = InputApis.IME_CMODE_NATIVE;
+            bool alreadyOpenNative = openBefore.ToInt64() != 0 && (currentConversion & InputApis.IME_CMODE_NATIVE) != 0;
+
+            if (alreadyOpenNative)
+            {
+                InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_SETOPENSTATUS, IntPtr.Zero);
+                System.Threading.Thread.Sleep(20);
+            }
 
             InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_SETOPENSTATUS, (IntPtr)1);
             InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_SETCONVERSIONMODE, (IntPtr)desiredConversion);
@@ -549,9 +609,121 @@ namespace InputFlow.Core
             IntPtr openAfter = InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_GETOPENSTATUS, IntPtr.Zero);
             IntPtr conversionAfter = InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_GETCONVERSIONMODE, IntPtr.Zero);
 
-            _logger.Info($"Default IME window Hangul/native set attempt. Open {openBefore.ToInt64()} -> {openAfter.ToInt64()}, conversion {currentConversion} -> {conversionAfter.ToInt64()} requested={desiredConversion}.");
+            _logger.Info($"Default IME window Hangul/native set attempt. Open {openBefore.ToInt64()} -> {openAfter.ToInt64()}, conversion {currentConversion} -> {conversionAfter.ToInt64()} requested={desiredConversion} refreshed={alreadyOpenNative}.");
 
             return (conversionAfter.ToInt64() & InputApis.IME_CMODE_NATIVE) != 0;
+        }
+
+        public string BuildRuntimeDiagnostics()
+        {
+            var builder = new StringBuilder();
+            AppendRuntimeInputState(builder);
+            return builder.ToString();
+        }
+
+        private void LogRuntimeInputState(string reason)
+        {
+            string[] lines = BuildRuntimeDiagnostics()
+                .Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string line in lines)
+            {
+                _logger.Info($"Input state ({reason}): {line}");
+            }
+        }
+
+        private void AppendRuntimeInputState(StringBuilder builder)
+        {
+            IntPtr foregroundWindow = InputApis.GetForegroundWindow();
+            builder.AppendLine("Current input state:");
+            builder.AppendLine($"- foreground: {FormatWindowHandle(foregroundWindow)} process={GetForegroundProcessName()}");
+
+            if (foregroundWindow == IntPtr.Zero)
+            {
+                builder.AppendLine("  foreground details: no foreground window");
+                return;
+            }
+
+            uint foregroundThread = InputApis.GetWindowThreadProcessId(foregroundWindow, out uint foregroundProcess);
+            builder.AppendLine($"  foreground thread={foregroundThread} processId={foregroundProcess}");
+            AppendWindowInputState(builder, "foreground", foregroundWindow, foregroundThread);
+
+            var gui = new InputApis.GUITHREADINFO();
+            gui.cbSize = System.Runtime.InteropServices.Marshal.SizeOf<InputApis.GUITHREADINFO>();
+            if (!InputApis.GetGUIThreadInfo(foregroundThread, ref gui))
+            {
+                builder.AppendLine("  focused: unavailable");
+                return;
+            }
+
+            builder.AppendLine($"- focused: {FormatWindowHandle(gui.hwndFocus)} active={FormatWindowHandle(gui.hwndActive)} caret={FormatWindowHandle(gui.hwndCaret)} flags=0x{gui.flags:X}");
+            if (gui.hwndFocus != IntPtr.Zero && gui.hwndFocus != foregroundWindow)
+            {
+                uint focusedThread = InputApis.GetWindowThreadProcessId(gui.hwndFocus, out uint focusedProcess);
+                builder.AppendLine($"  focused thread={focusedThread} processId={focusedProcess}");
+                AppendWindowInputState(builder, "focused", gui.hwndFocus, focusedThread);
+            }
+        }
+
+        private void AppendWindowInputState(StringBuilder builder, string label, IntPtr window, uint threadId)
+        {
+            IntPtr hkl = InputApis.GetKeyboardLayout(threadId);
+            string klid = ((ulong)hkl.ToInt64() & 0xFFFFFFFF).ToString("X8", CultureInfo.InvariantCulture);
+            InputProfile? matchedProfile = _installedProfiles.FirstOrDefault(profile => string.Equals(profile.KLID, klid, StringComparison.OrdinalIgnoreCase));
+            builder.AppendLine($"  {label} HKL=0x{hkl.ToInt64():X8} KLID={klid} profile={matchedProfile?.FriendlyName ?? "(unmatched)"}");
+            AppendImeContextState(builder, label, window);
+            AppendDefaultImeWindowState(builder, label, window);
+        }
+
+        private static void AppendImeContextState(StringBuilder builder, string label, IntPtr window)
+        {
+            IntPtr imc = InputApis.ImmGetContext(window);
+            if (imc == IntPtr.Zero)
+            {
+                builder.AppendLine($"  {label} IME context: none");
+                return;
+            }
+
+            try
+            {
+                bool open = InputApis.ImmGetOpenStatus(imc);
+                if (InputApis.ImmGetConversionStatus(imc, out int conversion, out int sentence))
+                {
+                    builder.AppendLine($"  {label} IME context: open={open} conversion={conversion} native={HasFlag(conversion, InputApis.IME_CMODE_NATIVE)} fullShape={HasFlag(conversion, InputApis.IME_CMODE_FULLSHAPE)} sentence={sentence}");
+                }
+                else
+                {
+                    builder.AppendLine($"  {label} IME context: open={open} conversion=unavailable");
+                }
+            }
+            finally
+            {
+                InputApis.ImmReleaseContext(window, imc);
+            }
+        }
+
+        private static void AppendDefaultImeWindowState(StringBuilder builder, string label, IntPtr ownerWindow)
+        {
+            IntPtr imeWindow = InputApis.ImmGetDefaultIMEWnd(ownerWindow);
+            if (imeWindow == IntPtr.Zero)
+            {
+                builder.AppendLine($"  {label} default IME window: none");
+                return;
+            }
+
+            IntPtr open = InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_GETOPENSTATUS, IntPtr.Zero);
+            IntPtr conversion = InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_GETCONVERSIONMODE, IntPtr.Zero);
+            int conversionValue = unchecked((int)conversion.ToInt64());
+            builder.AppendLine($"  {label} default IME window: {FormatWindowHandle(imeWindow)} open={open.ToInt64()} conversion={conversionValue} native={HasFlag(conversionValue, InputApis.IME_CMODE_NATIVE)} fullShape={HasFlag(conversionValue, InputApis.IME_CMODE_FULLSHAPE)}");
+        }
+
+        private static bool HasFlag(int value, int flag)
+        {
+            return (value & flag) != 0;
+        }
+
+        private static string FormatWindowHandle(IntPtr window)
+        {
+            return window == IntPtr.Zero ? "0x0" : $"0x{window.ToInt64():X}";
         }
 
         private static string? GetEnterModeForTarget(HotkeyState state, InputProfile target)
