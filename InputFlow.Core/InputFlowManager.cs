@@ -296,10 +296,7 @@ namespace InputFlow.Core
                     return false;
                 }
 
-                if (foregroundWindow != IntPtr.Zero)
-                {
-                    InputApis.PostMessage(foregroundWindow, InputApis.WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, hkl);
-                }
+                RequestInputLanguageChange(foregroundWindow, hkl);
 
                 InputApis.ActivateKeyboardLayout(hkl, InputApis.KLF_SETFORPROCESS);
                 System.Threading.Thread.Sleep(200);
@@ -311,10 +308,7 @@ namespace InputFlow.Core
                     return true;
                 }
 
-                if (foregroundWindow != IntPtr.Zero)
-                {
-                    InputApis.PostMessage(foregroundWindow, InputApis.WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, hkl);
-                }
+                RequestInputLanguageChange(foregroundWindow, hkl);
 
                 InputApis.ActivateKeyboardLayout(hkl, InputApis.KLF_SETFORPROCESS);
                 System.Threading.Thread.Sleep(300);
@@ -337,6 +331,58 @@ namespace InputFlow.Core
             {
                 _logger.Error($"Exception during switch: {ex}");
                 return false;
+            }
+        }
+
+        private void RequestInputLanguageChange(IntPtr foregroundWindow, IntPtr hkl)
+        {
+            if (foregroundWindow == IntPtr.Zero)
+            {
+                return;
+            }
+
+            var requestedWindows = new HashSet<IntPtr>();
+            uint threadId = InputApis.GetWindowThreadProcessId(foregroundWindow, out _);
+            var gui = new InputApis.GUITHREADINFO();
+            gui.cbSize = System.Runtime.InteropServices.Marshal.SizeOf<InputApis.GUITHREADINFO>();
+
+            if (InputApis.GetGUIThreadInfo(threadId, ref gui) && gui.hwndFocus != IntPtr.Zero)
+            {
+                RequestInputLanguageChangeForWindow(gui.hwndFocus, hkl, requestedWindows, "focused");
+            }
+
+            RequestInputLanguageChangeForWindow(foregroundWindow, hkl, requestedWindows, "foreground");
+        }
+
+        private void RequestInputLanguageChangeForWindow(IntPtr window, IntPtr hkl, HashSet<IntPtr> requestedWindows, string label)
+        {
+            if (window == IntPtr.Zero || !requestedWindows.Add(window))
+            {
+                return;
+            }
+
+            IntPtr sendResult = InputApis.SendMessageTimeout(
+                window,
+                InputApis.WM_INPUTLANGCHANGEREQUEST,
+                IntPtr.Zero,
+                hkl,
+                InputApis.SMTO_ABORTIFHUNG,
+                150,
+                out _);
+
+            if (sendResult != IntPtr.Zero)
+            {
+                _logger.Info($"Sent synchronous input-language change request to {label} window 0x{window.ToInt64():X}.");
+                return;
+            }
+
+            if (InputApis.PostMessage(window, InputApis.WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, hkl))
+            {
+                _logger.Warning($"Synchronous input-language change request to {label} window 0x{window.ToInt64():X} timed out or failed; posted async fallback.");
+            }
+            else
+            {
+                _logger.Warning($"Input-language change request to {label} window 0x{window.ToInt64():X} failed.");
             }
         }
 
@@ -488,7 +534,7 @@ namespace InputFlow.Core
                 }
 
                 bool openBefore = InputApis.ImmGetOpenStatus(imc);
-                int desired = conversion | InputApis.IME_CMODE_NATIVE;
+                int desired = InputApis.IME_CMODE_NATIVE;
 
                 if (!openBefore && !InputApis.ImmSetOpenStatus(imc, true))
                 {
@@ -539,7 +585,14 @@ namespace InputFlow.Core
             IntPtr conversionBefore = InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_GETCONVERSIONMODE, IntPtr.Zero);
 
             int currentConversion = unchecked((int)conversionBefore.ToInt64());
-            int desiredConversion = currentConversion | InputApis.IME_CMODE_NATIVE;
+            int desiredConversion = InputApis.IME_CMODE_NATIVE;
+            bool alreadyOpenNative = openBefore.ToInt64() != 0 && (currentConversion & InputApis.IME_CMODE_NATIVE) != 0;
+
+            if (alreadyOpenNative)
+            {
+                InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_SETOPENSTATUS, IntPtr.Zero);
+                System.Threading.Thread.Sleep(20);
+            }
 
             InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_SETOPENSTATUS, (IntPtr)1);
             InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_SETCONVERSIONMODE, (IntPtr)desiredConversion);
@@ -549,7 +602,7 @@ namespace InputFlow.Core
             IntPtr openAfter = InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_GETOPENSTATUS, IntPtr.Zero);
             IntPtr conversionAfter = InputApis.SendMessage(imeWindow, InputApis.WM_IME_CONTROL, (IntPtr)InputApis.IMC_GETCONVERSIONMODE, IntPtr.Zero);
 
-            _logger.Info($"Default IME window Hangul/native set attempt. Open {openBefore.ToInt64()} -> {openAfter.ToInt64()}, conversion {currentConversion} -> {conversionAfter.ToInt64()} requested={desiredConversion}.");
+            _logger.Info($"Default IME window Hangul/native set attempt. Open {openBefore.ToInt64()} -> {openAfter.ToInt64()}, conversion {currentConversion} -> {conversionAfter.ToInt64()} requested={desiredConversion} refreshed={alreadyOpenNative}.");
 
             return (conversionAfter.ToInt64() & InputApis.IME_CMODE_NATIVE) != 0;
         }
