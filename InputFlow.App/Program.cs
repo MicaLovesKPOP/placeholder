@@ -738,22 +738,36 @@ namespace InputFlow.App
                 }
 
                 int message = wParam.ToInt32();
+                int pressedKey = GetPressedKeyBucket(vk);
                 if (message == InputApis.WM_KEYDOWN || message == InputApis.WM_SYSKEYDOWN)
                 {
-                    if (_pressedKeys.Add(vk))
+                    _pressedKeys.Add(pressedKey);
+                    return (IntPtr)1;
+                }
+
+                if (message == InputApis.WM_KEYUP || message == InputApis.WM_SYSKEYUP)
+                {
+                    if (_pressedKeys.Remove(pressedKey))
                     {
                         _triggerPressed(id);
                     }
                     return (IntPtr)1;
                 }
 
-                if (message == InputApis.WM_KEYUP || message == InputApis.WM_SYSKEYUP)
+                return InputApis.CallNextHookEx(_hookHandle, nCode, wParam, lParam);
+            }
+
+            private int GetPressedKeyBucket(int vk)
+            {
+                if (vk == VkHangul &&
+                    _hotkeysByVk.TryGetValue(VkHangul, out int hangulId) &&
+                    _hotkeysByVk.TryGetValue((int)Keys.RMenu, out int rightAltId) &&
+                    hangulId == rightAltId)
                 {
-                    _pressedKeys.Remove(vk);
-                    return (IntPtr)1;
+                    return (int)Keys.RMenu;
                 }
 
-                return InputApis.CallNextHookEx(_hookHandle, nCode, wParam, lParam);
+                return vk;
             }
 
             public void Dispose()
