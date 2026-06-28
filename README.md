@@ -99,7 +99,7 @@ The tray menu includes:
 - Pause/Resume
 - Exit
 
-`Copy Diagnostics` copies a text report with config summary, workflows, installed input profiles, configured-profile match results, and workflow readiness. This is the preferred information to paste into bug reports when a Windows layout or IME does not match as expected.
+`Copy Diagnostics` copies a text report with config summary, workflows, installed input profiles, setup profile options, configured-profile match results, and workflow readiness. This is the preferred information to paste into bug reports when a Windows layout or IME does not match as expected.
 
 Configured profile reports include health states:
 
@@ -109,6 +109,8 @@ Configured profile reports include health states:
 - `changed`: InputFlow recovered through a compatibility fallback, but the config should be reviewed.
 
 Workflow readiness reports whether each configured workflow is ready or blocked. Blocked workflows include reasons such as missing triggers, missing targets, ambiguous profile matches, or missing profile matches.
+
+Setup profile options show every Windows profile InputFlow can see and which configured profile IDs already point at it.
 
 ## Configuration
 

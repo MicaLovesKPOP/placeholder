@@ -301,6 +301,11 @@ static void DiagnosticsReportIncludesProfileInventoryAndMatches()
     AssertContains(new[] { report }, "InputFlow diagnostics");
     AssertContains(new[] { report }, "Configured workflows: 1");
     AssertContains(new[] { report }, "Installed input profiles: 4");
+    AssertContains(new[] { report }, "Setup profile options: 4");
+    AssertContains(new[] { report }, "Dutch (Netherlands) KLID=F0010413");
+    AssertContains(new[] { report }, "configuredAs=us-intl");
+    AssertContains(new[] { report }, "English (United States) KLID=00020409");
+    AssertContains(new[] { report }, "configuredAs=(none)");
     AssertContains(new[] { report }, "Configured profile match reports: 2");
     AssertContains(new[] { report }, "F0010413");
     AssertContains(new[] { report }, "Dutch (Netherlands)");

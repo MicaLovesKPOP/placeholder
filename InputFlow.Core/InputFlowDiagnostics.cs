@@ -27,10 +27,13 @@ namespace InputFlow.Core
             builder.AppendLine($"Excluded processes: {FormatList(config.ExcludedProcesses)}");
             builder.AppendLine();
 
+            var setup = InputFlowSetupModelBuilder.Build(config, installedProfiles);
+
             AppendWorkflows(builder, config.Workflows);
             AppendProfiles(builder, installedProfiles);
+            AppendSetupProfileOptions(builder, setup.InstalledProfiles);
             AppendMatchReports(builder, InputProfileManager.EvaluateProfileMatches(installedProfiles, config.Profiles));
-            AppendWorkflowReadiness(builder, InputFlowSetupModelBuilder.Build(config, installedProfiles).Workflows);
+            AppendWorkflowReadiness(builder, setup.Workflows);
 
             return builder.ToString();
         }
@@ -51,6 +54,16 @@ namespace InputFlow.Core
             foreach (var profile in installedProfiles)
             {
                 builder.AppendLine($"- {InputProfileManager.FormatProfile(profile)}");
+            }
+            builder.AppendLine();
+        }
+
+        private static void AppendSetupProfileOptions(StringBuilder builder, IReadOnlyList<SetupInstalledProfileOption> profiles)
+        {
+            builder.AppendLine($"Setup profile options: {profiles.Count}");
+            foreach (var profile in profiles)
+            {
+                builder.AppendLine($"- {profile.DisplayName} configuredAs={FormatList(profile.ConfiguredProfileIds)}");
             }
             builder.AppendLine();
         }
