@@ -102,6 +102,7 @@ namespace InputFlow.App
             private int _nextHotkeyId = 1;
             private FileSystemWatcher? _configWatcher;
             private ToolStripMenuItem? _pauseMenuItem;
+            private SetupStatusForm? _setupStatusForm;
 
             public TrayApplicationContext(string configPath, string logPath, string? migratedLegacyConfigPath)
             {
@@ -157,6 +158,7 @@ namespace InputFlow.App
                 var menu = new ContextMenuStrip();
                 menu.Items.Add(new ToolStripMenuItem("Open Config", null, (_, _) => OpenPath(_configPath, "config file")));
                 menu.Items.Add(new ToolStripMenuItem("Open Log", null, (_, _) => OpenPath(_logPath, "log file")));
+                menu.Items.Add(new ToolStripMenuItem("Setup Status", null, (_, _) => OpenSetupStatus()));
                 menu.Items.Add(new ToolStripMenuItem("Copy Diagnostics", null, (_, _) => CopyDiagnostics()));
                 menu.Items.Add(new ToolStripSeparator());
                 menu.Items.Add(new ToolStripMenuItem("Reload Config", null, (_, _) => ReloadConfig("tray menu")));
@@ -186,6 +188,28 @@ namespace InputFlow.App
                 catch (Exception ex)
                 {
                     _logger.Warning($"Cannot open {displayName} '{path}': {ex.Message}");
+                }
+            }
+
+            private void OpenSetupStatus()
+            {
+                try
+                {
+                    if (_setupStatusForm == null || _setupStatusForm.IsDisposed)
+                    {
+                        _setupStatusForm = new SetupStatusForm(
+                            CopyDiagnostics,
+                            () => OpenPath(_configPath, "config file"));
+                        _setupStatusForm.FormClosed += (_, _) => _setupStatusForm = null;
+                    }
+
+                    _setupStatusForm.RefreshModel(InputFlowSetupModelBuilder.Build(_config, _installedProfiles));
+                    _setupStatusForm.Show();
+                    _setupStatusForm.Activate();
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warning($"Cannot open setup status window: {ex.Message}");
                 }
             }
 
@@ -245,6 +269,7 @@ namespace InputFlow.App
                     LogInstalledProfiles(_installedProfiles);
                     LogProfileMatches(_installedProfiles, _config.Profiles);
                     RegisterHotkeys();
+                    RefreshSetupStatusWindow();
 
                     _logger.Info("Configuration reloaded.");
                 }
@@ -252,6 +277,16 @@ namespace InputFlow.App
                 {
                     _logger.Error($"Failed to reload configuration: {ex.Message}");
                 }
+            }
+
+            private void RefreshSetupStatusWindow()
+            {
+                if (_setupStatusForm == null || _setupStatusForm.IsDisposed)
+                {
+                    return;
+                }
+
+                _setupStatusForm.RefreshModel(InputFlowSetupModelBuilder.Build(_config, _installedProfiles));
             }
 
             private void LogConfigLoadErrors(string reason, InputFlowConfigLoadResult loadResult)
@@ -552,6 +587,7 @@ namespace InputFlow.App
                 _singleKeyHook.Dispose();
                 _notifyIcon.Visible = false;
                 _notifyIcon.Dispose();
+                _setupStatusForm?.Dispose();
                 _hotkeyWindow.Dispose();
                 _uiDispatcher.Dispose();
                 _logger.Info("Exiting InputFlow");
@@ -567,6 +603,7 @@ namespace InputFlow.App
                     _configWatcher?.Dispose();
                     _singleKeyHook.Dispose();
                     _notifyIcon.Dispose();
+                    _setupStatusForm?.Dispose();
                     _hotkeyWindow.Dispose();
                     _uiDispatcher.Dispose();
                 }

@@ -56,6 +56,7 @@ Already achieved:
 15. Profile matching reports explicit health states: matched, missing, ambiguous, and changed; ambiguous profiles are not used for runtime switching.
 16. Core setup model exposes installed profile options, configured profile health, and workflow readiness for future first-run/settings UI.
 17. Copy Diagnostics surfaces workflow readiness and blocking reasons, so setup issues are visible before a full settings UI exists.
+18. Tray Setup Status window shows configured profile health, installed profile options, and workflow readiness without requiring JSON inspection.
 
 Still missing for a finished product:
 

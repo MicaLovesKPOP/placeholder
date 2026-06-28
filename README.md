@@ -94,10 +94,13 @@ The tray menu includes:
 
 - Open Config
 - Open Log
+- Setup Status
 - Copy Diagnostics
 - Reload Config
 - Pause/Resume
 - Exit
+
+`Setup Status` opens a read-only window with configured profile health, installed profile options, and workflow readiness. It is the first UI surface for setup review before the full settings editor is available.
 
 `Copy Diagnostics` copies a text report with config summary, workflows, installed input profiles, setup profile options, configured-profile match results, and workflow readiness. This is the preferred information to paste into bug reports when a Windows layout or IME does not match as expected.
 
