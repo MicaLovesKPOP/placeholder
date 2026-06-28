@@ -22,7 +22,9 @@ var tests = new (string Name, Action Test)[]
     ("AmbiguousProfilesAreNotRuntimeMatches", AmbiguousProfilesAreNotRuntimeMatches),
     ("DiagnosticsReportIncludesProfileInventoryAndMatches", DiagnosticsReportIncludesProfileInventoryAndMatches),
     ("FirstRunConfigUsesInstalledProfiles", FirstRunConfigUsesInstalledProfiles),
-    ("FirstRunConfigHandlesUnknownLanguageTags", FirstRunConfigHandlesUnknownLanguageTags)
+    ("FirstRunConfigHandlesUnknownLanguageTags", FirstRunConfigHandlesUnknownLanguageTags),
+    ("SetupModelIncludesProfileOptionsAndWorkflowReadiness", SetupModelIncludesProfileOptionsAndWorkflowReadiness),
+    ("SetupModelBlocksAmbiguousAndMissingProfiles", SetupModelBlocksAmbiguousAndMissingProfiles)
 };
 
 int failed = 0;
@@ -333,6 +335,57 @@ static void FirstRunConfigHandlesUnknownLanguageTags()
     AssertEqual(1, config.Profiles.Count, "Expected one generated profile.");
     AssertEqual("00001234", config.Profiles[0].Match.KLID, "Unknown language profiles should still match by KLID.");
     AssertEqual(null, config.Profiles[0].Match.LanguageTag, "Unknown language profiles should not emit invalid language tags.");
+}
+
+static void SetupModelIncludesProfileOptionsAndWorkflowReadiness()
+{
+    var config = CreateKnownWorkingWorkflowConfig();
+    var installed = CreateInstalledProfiles();
+
+    var model = InputFlowSetupModelBuilder.Build(config, installed);
+
+    AssertEqual(installed.Count, model.InstalledProfiles.Count, "Setup model should include all installed profiles.");
+    AssertTrue(model.InstalledProfiles.Any(option => option.Profile.KLID == "F0010413" && option.IsConfigured), "Dutch profile should be linked to a configured profile.");
+    AssertEqual(2, model.ConfiguredProfiles.Count, "Known config has two configured profiles.");
+
+    var korean = model.ConfiguredProfiles.Single(profile => profile.ProfileId == "korean");
+    AssertEqual(ProfileHealthState.Matched, korean.Health, "Korean profile should be matched.");
+    AssertTrue(korean.CanUseForSwitching, "Matched Korean profile should be switchable.");
+    AssertEqual("hangul", korean.EnterMode, "Setup model should preserve enter mode.");
+
+    var workflow = model.Workflows.Single();
+    AssertTrue(workflow.CanRegister, string.Join("; ", workflow.BlockingReasons));
+    AssertEqual("korean", workflow.TargetProfileIds.Single(), "Workflow target should be reported.");
+    AssertEqual("us-intl", workflow.FallbackProfileId, "Workflow fallback should be reported.");
+}
+
+static void SetupModelBlocksAmbiguousAndMissingProfiles()
+{
+    var config = CreateKnownWorkingWorkflowConfig();
+    config.Profiles = new List<ProfileDefinition>
+    {
+        new ProfileDefinition { Id = "ambiguous", Match = new ProfileMatch { LayoutNameContains = "English" } },
+        new ProfileDefinition { Id = "missing", Match = new ProfileMatch { LanguageTag = "ja-JP" } }
+    };
+    config.Workflows = new List<WorkflowConfig>
+    {
+        new WorkflowConfig
+        {
+            Id = "bad-toggle",
+            Name = "Bad toggle",
+            Mode = "toggle",
+            Triggers = new List<TriggerConfig> { new TriggerConfig { Keys = "F13" } },
+            Target = "ambiguous",
+            Fallback = "missing"
+        }
+    };
+
+    var model = InputFlowSetupModelBuilder.Build(config, CreateInstalledProfiles());
+    var workflow = model.Workflows.Single();
+
+    AssertFalse(workflow.CanRegister, "Workflow should be blocked.");
+    AssertContains(workflow.BlockingReasons, "Target profile 'ambiguous' is ambiguous.");
+    AssertContains(workflow.BlockingReasons, "Fallback profile 'missing' is missing.");
 }
 
 static InputFlowConfig CreateKnownWorkingWorkflowConfig()

@@ -54,6 +54,7 @@ Already achieved:
 13. Real-world Edge address bar testing showed that browser chrome can fail to emit Hangul even when TSF language switching, HKL verification, and IMM Hangul/native state all report success; this is now treated as a documented app-field limitation, not a release-blocking core switching failure.
 14. Fresh installs generate an inventory-backed starter config from installed Windows input profiles instead of assuming the original Dutch/Korean setup.
 15. Profile matching reports explicit health states: matched, missing, ambiguous, and changed; ambiguous profiles are not used for runtime switching.
+16. Core setup model exposes installed profile options, configured profile health, and workflow readiness for future first-run/settings UI.
 
 Still missing for a finished product:
 
