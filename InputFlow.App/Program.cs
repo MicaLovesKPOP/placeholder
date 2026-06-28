@@ -201,7 +201,8 @@ namespace InputFlow.App
                         _setupStatusForm = new SetupStatusForm(
                             CopyDiagnostics,
                             () => OpenPath(_configPath, "config file"),
-                            OpenAddWorkflow);
+                            OpenAddWorkflow,
+                            RemoveWorkflow);
                         _setupStatusForm.FormClosed += (_, _) => _setupStatusForm = null;
                     }
 
@@ -276,6 +277,40 @@ namespace InputFlow.App
                 }
 
                 _logger.Info($"Saved setup workflow '{draft.Name}' ({draft.Mode}).");
+                ReloadConfig("setup status window");
+                RefreshSetupStatusWindow();
+            }
+
+            private void RemoveWorkflow(string workflowId)
+            {
+                var updated = CloneConfig(_config);
+                int removed = updated.Workflows.RemoveAll(workflow => string.Equals(workflow.Id, workflowId, StringComparison.OrdinalIgnoreCase));
+                if (removed == 0)
+                {
+                    MessageBox.Show(
+                        _setupStatusForm,
+                        $"Workflow '{workflowId}' was not found.",
+                        "InputFlow",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
+                var saveResult = InputFlowConfigWriter.SaveValidated(updated, _configPath);
+                if (!saveResult.Success)
+                {
+                    string message = string.Join(Environment.NewLine, saveResult.Errors);
+                    _logger.Warning($"Setup workflow remove failed: {message}");
+                    MessageBox.Show(
+                        _setupStatusForm,
+                        message,
+                        "InputFlow could not remove the workflow",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
+                _logger.Info($"Removed setup workflow '{workflowId}'.");
                 ReloadConfig("setup status window");
                 RefreshSetupStatusWindow();
             }

@@ -59,6 +59,7 @@ Already achieved:
 18. Tray Setup Status window shows configured profile health, installed profile options, and workflow readiness without requiring JSON inspection.
 19. Setup Status can add toggle, direct-switch, and cycle workflows through validated config saving.
 20. Trigger parsing is shared by config validation, runtime registration, and setup UI; single-key setup warns before saving.
+21. Setup Status can remove workflows through validated config saving.
 
 Still missing for a finished product:
 

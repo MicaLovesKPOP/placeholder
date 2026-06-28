@@ -13,12 +13,14 @@ namespace InputFlow.App
         private readonly Action _copyDiagnostics;
         private readonly Action _openConfig;
         private readonly Action _addWorkflow;
+        private readonly Action<string> _removeWorkflow;
 
-        public SetupStatusForm(Action copyDiagnostics, Action openConfig, Action addWorkflow)
+        public SetupStatusForm(Action copyDiagnostics, Action openConfig, Action addWorkflow, Action<string> removeWorkflow)
         {
             _copyDiagnostics = copyDiagnostics;
             _openConfig = openConfig;
             _addWorkflow = addWorkflow;
+            _removeWorkflow = removeWorkflow;
 
             Text = "InputFlow Setup Status";
             StartPosition = FormStartPosition.CenterScreen;
@@ -39,7 +41,7 @@ namespace InputFlow.App
 
             _configuredProfilesList = CreateListView("Profile ID", "Health", "Matched profile", "Enter mode", "Summary");
             _installedProfilesList = CreateListView("Installed profile", "Configured as");
-            _workflowsList = CreateListView("Workflow", "Mode", "Status", "Triggers", "Targets", "Fallback", "Blocking reasons");
+            _workflowsList = CreateListView("Workflow", "ID", "Mode", "Status", "Triggers", "Targets", "Fallback", "Blocking reasons");
 
             root.Controls.Add(CreateGroup("Configured profiles", _configuredProfilesList), 0, 0);
             root.Controls.Add(CreateGroup("Installed profile options", _installedProfilesList), 0, 1);
@@ -82,16 +84,21 @@ namespace InputFlow.App
                 _workflowsList.Items.Clear();
                 foreach (var workflow in model.Workflows)
                 {
-                    _workflowsList.Items.Add(new ListViewItem(new[]
+                    var item = new ListViewItem(new[]
                     {
                         workflow.DisplayName,
+                        workflow.WorkflowId,
                         workflow.Mode,
                         workflow.CanRegister ? "ready" : "blocked",
                         FormatList(workflow.TriggerKeys),
                         FormatList(workflow.TargetProfileIds),
                         workflow.FallbackProfileId ?? "",
                         FormatList(workflow.BlockingReasons)
-                    }));
+                    })
+                    {
+                        Tag = workflow.WorkflowId
+                    };
+                    _workflowsList.Items.Add(item);
                 }
             }
             finally
@@ -126,11 +133,42 @@ namespace InputFlow.App
             var addWorkflowButton = new Button { Text = "Add Workflow", Width = 120, Height = 30 };
             addWorkflowButton.Click += (_, _) => _addWorkflow();
 
+            var removeWorkflowButton = new Button { Text = "Remove Workflow", Width = 130, Height = 30 };
+            removeWorkflowButton.Click += (_, _) => RemoveSelectedWorkflow();
+
             panel.Controls.Add(closeButton);
             panel.Controls.Add(copyButton);
             panel.Controls.Add(configButton);
             panel.Controls.Add(addWorkflowButton);
+            panel.Controls.Add(removeWorkflowButton);
             return panel;
+        }
+
+        private void RemoveSelectedWorkflow()
+        {
+            if (_workflowsList.SelectedItems.Count == 0)
+            {
+                MessageBox.Show(this, "Select a workflow first.", "InputFlow", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string? workflowId = _workflowsList.SelectedItems[0].Tag as string;
+            if (string.IsNullOrWhiteSpace(workflowId))
+            {
+                MessageBox.Show(this, "The selected workflow cannot be removed because it has no ID.", "InputFlow", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                this,
+                $"Remove workflow '{workflowId}'?",
+                "InputFlow",
+                MessageBoxButtons.OKCancel,
+                MessageBoxIcon.Warning);
+            if (result == DialogResult.OK)
+            {
+                _removeWorkflow(workflowId);
+            }
         }
 
         private static GroupBox CreateGroup(string title, Control content)
