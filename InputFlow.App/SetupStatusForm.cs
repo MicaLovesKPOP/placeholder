@@ -12,13 +12,13 @@ namespace InputFlow.App
         private readonly ListView _workflowsList;
         private readonly Action _copyDiagnostics;
         private readonly Action _openConfig;
-        private readonly Action _addToggleWorkflow;
+        private readonly Action _addWorkflow;
 
-        public SetupStatusForm(Action copyDiagnostics, Action openConfig, Action addToggleWorkflow)
+        public SetupStatusForm(Action copyDiagnostics, Action openConfig, Action addWorkflow)
         {
             _copyDiagnostics = copyDiagnostics;
             _openConfig = openConfig;
-            _addToggleWorkflow = addToggleWorkflow;
+            _addWorkflow = addWorkflow;
 
             Text = "InputFlow Setup Status";
             StartPosition = FormStartPosition.CenterScreen;
@@ -123,13 +123,13 @@ namespace InputFlow.App
             var configButton = new Button { Text = "Open Config", Width = 110, Height = 30 };
             configButton.Click += (_, _) => _openConfig();
 
-            var addToggleButton = new Button { Text = "Add Toggle", Width = 110, Height = 30 };
-            addToggleButton.Click += (_, _) => _addToggleWorkflow();
+            var addWorkflowButton = new Button { Text = "Add Workflow", Width = 120, Height = 30 };
+            addWorkflowButton.Click += (_, _) => _addWorkflow();
 
             panel.Controls.Add(closeButton);
             panel.Controls.Add(copyButton);
             panel.Controls.Add(configButton);
-            panel.Controls.Add(addToggleButton);
+            panel.Controls.Add(addWorkflowButton);
             return panel;
         }
 

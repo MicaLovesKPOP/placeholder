@@ -201,7 +201,7 @@ namespace InputFlow.App
                         _setupStatusForm = new SetupStatusForm(
                             CopyDiagnostics,
                             () => OpenPath(_configPath, "config file"),
-                            OpenAddToggleWorkflow);
+                            OpenAddWorkflow);
                         _setupStatusForm.FormClosed += (_, _) => _setupStatusForm = null;
                     }
 
@@ -215,7 +215,7 @@ namespace InputFlow.App
                 }
             }
 
-            private void OpenAddToggleWorkflow()
+            private void OpenAddWorkflow()
             {
                 var setup = InputFlowSetupModelBuilder.Build(_config, _installedProfiles);
                 if (!setup.ConfiguredProfiles.Any(profile => profile.CanUseForSwitching))
@@ -229,28 +229,37 @@ namespace InputFlow.App
                     return;
                 }
 
-                using var dialog = new ToggleWorkflowDialog(setup.ConfiguredProfiles);
+                using var dialog = new WorkflowDialog(setup.ConfiguredProfiles);
                 if (dialog.ShowDialog(_setupStatusForm) != DialogResult.OK)
                 {
                     return;
                 }
 
-                SaveToggleWorkflow(dialog.Draft);
+                SaveWorkflow(dialog.Draft);
             }
 
-            private void SaveToggleWorkflow(ToggleWorkflowDraft draft)
+            private void SaveWorkflow(WorkflowDraft draft)
             {
                 var updated = CloneConfig(_config);
-                updated.Workflows.Add(new WorkflowConfig
+                var workflow = new WorkflowConfig
                 {
                     Id = CreateUniqueWorkflowId(draft.Name, updated.Workflows),
                     Name = draft.Name,
-                    Mode = "toggle",
+                    Mode = draft.Mode,
                     Triggers = new List<TriggerConfig> { new TriggerConfig { Keys = draft.Trigger } },
-                    Target = draft.TargetProfileId,
                     ReturnBehavior = draft.ReturnBehavior,
                     Fallback = draft.FallbackProfileId
-                });
+                };
+                if (draft.Mode.Equals("cycle", StringComparison.OrdinalIgnoreCase))
+                {
+                    workflow.Targets = draft.TargetProfileIds;
+                }
+                else
+                {
+                    workflow.Target = draft.TargetProfileId;
+                }
+
+                updated.Workflows.Add(workflow);
 
                 var saveResult = InputFlowConfigWriter.SaveValidated(updated, _configPath);
                 if (!saveResult.Success)
@@ -266,7 +275,7 @@ namespace InputFlow.App
                     return;
                 }
 
-                _logger.Info($"Saved setup workflow '{draft.Name}'.");
+                _logger.Info($"Saved setup workflow '{draft.Name}' ({draft.Mode}).");
                 ReloadConfig("setup status window");
                 RefreshSetupStatusWindow();
             }
