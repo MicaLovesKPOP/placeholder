@@ -21,6 +21,8 @@ var tests = new (string Name, Action Test)[]
     ("ProfileMatchReportsExposeHealthStates", ProfileMatchReportsExposeHealthStates),
     ("AmbiguousProfilesAreNotRuntimeMatches", AmbiguousProfilesAreNotRuntimeMatches),
     ("DiagnosticsReportIncludesProfileInventoryAndMatches", DiagnosticsReportIncludesProfileInventoryAndMatches),
+    ("DiagnosticsReportIncludesWorkflowReadiness", DiagnosticsReportIncludesWorkflowReadiness),
+    ("DiagnosticsReportIncludesBlockedWorkflowReasons", DiagnosticsReportIncludesBlockedWorkflowReasons),
     ("FirstRunConfigUsesInstalledProfiles", FirstRunConfigUsesInstalledProfiles),
     ("FirstRunConfigHandlesUnknownLanguageTags", FirstRunConfigHandlesUnknownLanguageTags),
     ("SetupModelIncludesProfileOptionsAndWorkflowReadiness", SetupModelIncludesProfileOptionsAndWorkflowReadiness),
@@ -302,6 +304,46 @@ static void DiagnosticsReportIncludesProfileInventoryAndMatches()
     AssertContains(new[] { report }, "Configured profile match reports: 2");
     AssertContains(new[] { report }, "F0010413");
     AssertContains(new[] { report }, "Dutch (Netherlands)");
+}
+
+static void DiagnosticsReportIncludesWorkflowReadiness()
+{
+    var config = CreateKnownWorkingWorkflowConfig();
+    var report = InputFlowDiagnostics.BuildReport(config, CreateInstalledProfiles(), "C:\\InputFlow\\inputflow.json", "C:\\InputFlow\\inputflow.log");
+
+    AssertContains(new[] { report }, "Workflow readiness: 1");
+    AssertContains(new[] { report }, "Korean toggle (korean-toggle) mode=toggle status=ready");
+    AssertContains(new[] { report }, "triggers=RightAlt");
+    AssertContains(new[] { report }, "targets=korean");
+    AssertContains(new[] { report }, "fallback=us-intl");
+}
+
+static void DiagnosticsReportIncludesBlockedWorkflowReasons()
+{
+    var config = CreateKnownWorkingWorkflowConfig();
+    config.Profiles = new List<ProfileDefinition>
+    {
+        new ProfileDefinition { Id = "ambiguous", Match = new ProfileMatch { LayoutNameContains = "English" } },
+        new ProfileDefinition { Id = "missing", Match = new ProfileMatch { LanguageTag = "ja-JP" } }
+    };
+    config.Workflows = new List<WorkflowConfig>
+    {
+        new WorkflowConfig
+        {
+            Id = "bad-toggle",
+            Name = "Bad toggle",
+            Mode = "toggle",
+            Triggers = new List<TriggerConfig> { new TriggerConfig { Keys = "F13" } },
+            Target = "ambiguous",
+            Fallback = "missing"
+        }
+    };
+
+    var report = InputFlowDiagnostics.BuildReport(config, CreateInstalledProfiles(), "C:\\InputFlow\\inputflow.json", "C:\\InputFlow\\inputflow.log");
+
+    AssertContains(new[] { report }, "Bad toggle (bad-toggle) mode=toggle status=blocked");
+    AssertContains(new[] { report }, "block: Target profile 'ambiguous' is ambiguous.");
+    AssertContains(new[] { report }, "block: Fallback profile 'missing' is missing.");
 }
 
 static void FirstRunConfigUsesInstalledProfiles()

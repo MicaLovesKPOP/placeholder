@@ -30,6 +30,7 @@ namespace InputFlow.Core
             AppendWorkflows(builder, config.Workflows);
             AppendProfiles(builder, installedProfiles);
             AppendMatchReports(builder, InputProfileManager.EvaluateProfileMatches(installedProfiles, config.Profiles));
+            AppendWorkflowReadiness(builder, InputFlowSetupModelBuilder.Build(config, installedProfiles).Workflows);
 
             return builder.ToString();
         }
@@ -69,6 +70,20 @@ namespace InputFlow.Core
                 foreach (var candidate in report.Candidates)
                 {
                     builder.AppendLine($"  candidate: {(candidate.IsMatch ? "match" : "no match")} {InputProfileManager.FormatProfile(candidate.Profile)} - {candidate.Reason}");
+                }
+            }
+        }
+
+        private static void AppendWorkflowReadiness(StringBuilder builder, IReadOnlyList<SetupWorkflowOption> workflows)
+        {
+            builder.AppendLine();
+            builder.AppendLine($"Workflow readiness: {workflows.Count}");
+            foreach (var workflow in workflows)
+            {
+                builder.AppendLine($"- {workflow.DisplayName} ({workflow.WorkflowId}) mode={workflow.Mode} status={(workflow.CanRegister ? "ready" : "blocked")} triggers={FormatList(workflow.TriggerKeys)} targets={FormatList(workflow.TargetProfileIds)} fallback={workflow.FallbackProfileId ?? ""}");
+                foreach (string reason in workflow.BlockingReasons)
+                {
+                    builder.AppendLine($"  block: {reason}");
                 }
             }
         }
