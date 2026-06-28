@@ -202,6 +202,7 @@ namespace InputFlow.App
                             CopyDiagnostics,
                             () => OpenPath(_configPath, "config file"),
                             OpenAddWorkflow,
+                            EditWorkflow,
                             RemoveWorkflow);
                         _setupStatusForm.FormClosed += (_, _) => _setupStatusForm = null;
                     }
@@ -239,12 +240,63 @@ namespace InputFlow.App
                 SaveWorkflow(dialog.Draft);
             }
 
+            private void EditWorkflow(string workflowId)
+            {
+                var workflow = _config.Workflows.FirstOrDefault(candidate => string.Equals(candidate.Id, workflowId, StringComparison.OrdinalIgnoreCase));
+                if (workflow == null)
+                {
+                    MessageBox.Show(
+                        _setupStatusForm,
+                        $"Workflow '{workflowId}' was not found.",
+                        "InputFlow",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
+                var setup = InputFlowSetupModelBuilder.Build(_config, _installedProfiles);
+                using var dialog = new WorkflowDialog(setup.ConfiguredProfiles, CreateWorkflowDraft(workflow));
+                if (dialog.ShowDialog(_setupStatusForm) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                SaveWorkflow(dialog.Draft, workflowId);
+            }
+
             private void SaveWorkflow(WorkflowDraft draft)
             {
                 var updated = CloneConfig(_config);
+                updated.Workflows.Add(CreateWorkflowConfig(draft, CreateUniqueWorkflowId(draft.Name, updated.Workflows)));
+
+                SaveWorkflowConfig(updated, $"Saved setup workflow '{draft.Name}' ({draft.Mode}).", "save");
+            }
+
+            private void SaveWorkflow(WorkflowDraft draft, string workflowId)
+            {
+                var updated = CloneConfig(_config);
+                int index = updated.Workflows.FindIndex(workflow => string.Equals(workflow.Id, workflowId, StringComparison.OrdinalIgnoreCase));
+                if (index < 0)
+                {
+                    MessageBox.Show(
+                        _setupStatusForm,
+                        $"Workflow '{workflowId}' was not found.",
+                        "InputFlow",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
+                updated.Workflows[index] = CreateWorkflowConfig(draft, workflowId);
+
+                SaveWorkflowConfig(updated, $"Edited setup workflow '{workflowId}' ({draft.Mode}).", "edit");
+            }
+
+            private static WorkflowConfig CreateWorkflowConfig(WorkflowDraft draft, string workflowId)
+            {
                 var workflow = new WorkflowConfig
                 {
-                    Id = CreateUniqueWorkflowId(draft.Name, updated.Workflows),
+                    Id = workflowId,
                     Name = draft.Name,
                     Mode = draft.Mode,
                     Triggers = new List<TriggerConfig> { new TriggerConfig { Keys = draft.Trigger } },
@@ -260,25 +312,46 @@ namespace InputFlow.App
                     workflow.Target = draft.TargetProfileId;
                 }
 
-                updated.Workflows.Add(workflow);
+                return workflow;
+            }
 
+            private void SaveWorkflowConfig(InputFlowConfig updated, string successMessage, string operation)
+            {
                 var saveResult = InputFlowConfigWriter.SaveValidated(updated, _configPath);
                 if (!saveResult.Success)
                 {
                     string message = string.Join(Environment.NewLine, saveResult.Errors);
-                    _logger.Warning($"Setup workflow save failed: {message}");
+                    _logger.Warning($"Setup workflow {operation} failed: {message}");
                     MessageBox.Show(
                         _setupStatusForm,
                         message,
-                        "InputFlow could not save the workflow",
+                        $"InputFlow could not {operation} the workflow",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
                     return;
                 }
 
-                _logger.Info($"Saved setup workflow '{draft.Name}' ({draft.Mode}).");
+                _logger.Info(successMessage);
                 ReloadConfig("setup status window");
                 RefreshSetupStatusWindow();
+            }
+
+            private static WorkflowDraft CreateWorkflowDraft(WorkflowConfig workflow)
+            {
+                string mode = string.IsNullOrWhiteSpace(workflow.Mode) ? "toggle" : workflow.Mode.Trim();
+                return new WorkflowDraft
+                {
+                    Name = string.IsNullOrWhiteSpace(workflow.Name) ? workflow.Id : workflow.Name,
+                    Mode = mode,
+                    Trigger = workflow.Triggers.FirstOrDefault(trigger => !string.IsNullOrWhiteSpace(trigger.Keys))?.Keys ?? string.Empty,
+                    TargetProfileId = workflow.Target,
+                    TargetProfileIds = workflow.Targets
+                        .Where(target => !string.IsNullOrWhiteSpace(target))
+                        .Select(target => target.Trim())
+                        .ToList(),
+                    FallbackProfileId = workflow.Fallback,
+                    ReturnBehavior = string.IsNullOrWhiteSpace(workflow.ReturnBehavior) ? "lastNonTarget" : workflow.ReturnBehavior
+                };
             }
 
             private void RemoveWorkflow(string workflowId)

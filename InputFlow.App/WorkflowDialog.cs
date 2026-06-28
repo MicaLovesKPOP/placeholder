@@ -32,9 +32,9 @@ namespace InputFlow.App
         private readonly Label _returnBehaviorLabel;
         private readonly Label _errorLabel;
 
-        public WorkflowDialog(IReadOnlyList<SetupConfiguredProfileOption> profiles)
+        public WorkflowDialog(IReadOnlyList<SetupConfiguredProfileOption> profiles, WorkflowDraft? initialDraft = null)
         {
-            Text = "Add Workflow";
+            Text = initialDraft == null ? "Add Workflow" : "Edit Workflow";
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
@@ -116,11 +116,7 @@ namespace InputFlow.App
 
             Controls.Add(root);
 
-            if (_targetComboBox.Items.Count > 0)
-            {
-                _targetComboBox.SelectedIndex = 0;
-            }
-            _fallbackComboBox.SelectedIndex = 0;
+            ApplyInitialDraft(initialDraft);
             UpdateModeVisibility();
         }
 
@@ -247,6 +243,78 @@ namespace InputFlow.App
         private string GetSelectedMode()
         {
             return _modeComboBox.SelectedItem is ModeItem mode ? mode.Value : "toggle";
+        }
+
+        private void ApplyInitialDraft(WorkflowDraft? draft)
+        {
+            if (draft == null)
+            {
+                if (_targetComboBox.Items.Count > 0)
+                {
+                    _targetComboBox.SelectedIndex = 0;
+                }
+                _fallbackComboBox.SelectedIndex = 0;
+                return;
+            }
+
+            _nameTextBox.Text = draft.Name;
+            _triggerTextBox.Text = draft.Trigger;
+            SelectMode(draft.Mode);
+            SelectProfile(_targetComboBox, draft.TargetProfileId);
+            SelectProfile(_fallbackComboBox, draft.FallbackProfileId);
+            SelectReturnBehavior(draft.ReturnBehavior);
+            SelectCycleTargets(draft.TargetProfileIds);
+        }
+
+        private void SelectMode(string mode)
+        {
+            for (int i = 0; i < _modeComboBox.Items.Count; i++)
+            {
+                if (_modeComboBox.Items[i] is ModeItem item && string.Equals(item.Value, mode, StringComparison.OrdinalIgnoreCase))
+                {
+                    _modeComboBox.SelectedIndex = i;
+                    return;
+                }
+            }
+        }
+
+        private static void SelectProfile(ComboBox combo, string? profileId)
+        {
+            for (int i = 0; i < combo.Items.Count; i++)
+            {
+                if (combo.Items[i] is ProfileItem item && string.Equals(item.ProfileId, profileId ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+                {
+                    combo.SelectedIndex = i;
+                    return;
+                }
+            }
+
+            if (combo.Items.Count > 0)
+            {
+                combo.SelectedIndex = 0;
+            }
+        }
+
+        private void SelectReturnBehavior(string returnBehavior)
+        {
+            for (int i = 0; i < _returnBehaviorComboBox.Items.Count; i++)
+            {
+                if (_returnBehaviorComboBox.Items[i] is ReturnBehaviorItem item && string.Equals(item.Value, returnBehavior, StringComparison.OrdinalIgnoreCase))
+                {
+                    _returnBehaviorComboBox.SelectedIndex = i;
+                    return;
+                }
+            }
+        }
+
+        private void SelectCycleTargets(IReadOnlyList<string> targetIds)
+        {
+            var selected = targetIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < _cycleTargetsList.Items.Count; i++)
+            {
+                bool isChecked = _cycleTargetsList.Items[i] is ProfileItem item && selected.Contains(item.ProfileId);
+                _cycleTargetsList.SetItemChecked(i, isChecked);
+            }
         }
 
         private static ComboBox CreateProfileComboBox(IReadOnlyList<ProfileItem> items)

@@ -100,7 +100,7 @@ The tray menu includes:
 - Pause/Resume
 - Exit
 
-`Setup Status` opens a window with configured profile health, installed profile options, and workflow readiness. It can add toggle, direct-switch, and cycle workflows between configured profiles, and remove existing workflows. Editing existing workflows in place is still planned.
+`Setup Status` opens a window with configured profile health, installed profile options, and workflow readiness. It can add, edit, and remove toggle, direct-switch, and cycle workflows between configured profiles.
 
 `Copy Diagnostics` copies a text report with config summary, workflows, installed input profiles, setup profile options, configured-profile match results, and workflow readiness. This is the preferred information to paste into bug reports when a Windows layout or IME does not match as expected.
 

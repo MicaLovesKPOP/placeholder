@@ -13,13 +13,15 @@ namespace InputFlow.App
         private readonly Action _copyDiagnostics;
         private readonly Action _openConfig;
         private readonly Action _addWorkflow;
+        private readonly Action<string> _editWorkflow;
         private readonly Action<string> _removeWorkflow;
 
-        public SetupStatusForm(Action copyDiagnostics, Action openConfig, Action addWorkflow, Action<string> removeWorkflow)
+        public SetupStatusForm(Action copyDiagnostics, Action openConfig, Action addWorkflow, Action<string> editWorkflow, Action<string> removeWorkflow)
         {
             _copyDiagnostics = copyDiagnostics;
             _openConfig = openConfig;
             _addWorkflow = addWorkflow;
+            _editWorkflow = editWorkflow;
             _removeWorkflow = removeWorkflow;
 
             Text = "InputFlow Setup Status";
@@ -133,6 +135,9 @@ namespace InputFlow.App
             var addWorkflowButton = new Button { Text = "Add Workflow", Width = 120, Height = 30 };
             addWorkflowButton.Click += (_, _) => _addWorkflow();
 
+            var editWorkflowButton = new Button { Text = "Edit Workflow", Width = 120, Height = 30 };
+            editWorkflowButton.Click += (_, _) => EditSelectedWorkflow();
+
             var removeWorkflowButton = new Button { Text = "Remove Workflow", Width = 130, Height = 30 };
             removeWorkflowButton.Click += (_, _) => RemoveSelectedWorkflow();
 
@@ -140,22 +145,27 @@ namespace InputFlow.App
             panel.Controls.Add(copyButton);
             panel.Controls.Add(configButton);
             panel.Controls.Add(addWorkflowButton);
+            panel.Controls.Add(editWorkflowButton);
             panel.Controls.Add(removeWorkflowButton);
             return panel;
         }
 
-        private void RemoveSelectedWorkflow()
+        private void EditSelectedWorkflow()
         {
-            if (_workflowsList.SelectedItems.Count == 0)
+            string? workflowId = GetSelectedWorkflowId();
+            if (workflowId == null)
             {
-                MessageBox.Show(this, "Select a workflow first.", "InputFlow", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            string? workflowId = _workflowsList.SelectedItems[0].Tag as string;
-            if (string.IsNullOrWhiteSpace(workflowId))
+            _editWorkflow(workflowId);
+        }
+
+        private void RemoveSelectedWorkflow()
+        {
+            string? workflowId = GetSelectedWorkflowId();
+            if (workflowId == null)
             {
-                MessageBox.Show(this, "The selected workflow cannot be removed because it has no ID.", "InputFlow", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -169,6 +179,24 @@ namespace InputFlow.App
             {
                 _removeWorkflow(workflowId);
             }
+        }
+
+        private string? GetSelectedWorkflowId()
+        {
+            if (_workflowsList.SelectedItems.Count == 0)
+            {
+                MessageBox.Show(this, "Select a workflow first.", "InputFlow", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return null;
+            }
+
+            string? workflowId = _workflowsList.SelectedItems[0].Tag as string;
+            if (!string.IsNullOrWhiteSpace(workflowId))
+            {
+                return workflowId;
+            }
+
+            MessageBox.Show(this, "The selected workflow has no ID.", "InputFlow", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return null;
         }
 
         private static GroupBox CreateGroup(string title, Control content)
