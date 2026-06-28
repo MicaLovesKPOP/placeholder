@@ -63,8 +63,8 @@ namespace InputFlow.App
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-            _nameTextBox = new TextBox { Dock = DockStyle.Fill, Text = "Language workflow" };
-            _modeComboBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
+            _nameTextBox = new TextBox { Dock = DockStyle.Fill, Text = "Language workflow", AccessibleName = "Workflow name", TabIndex = 0 };
+            _modeComboBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = "Workflow mode", TabIndex = 1 };
             _modeComboBox.Items.Add(new ModeItem("toggle", "Toggle"));
             _modeComboBox.Items.Add(new ModeItem("switchTo", "Direct switch"));
             _modeComboBox.Items.Add(new ModeItem("cycle", "Cycle"));
@@ -72,16 +72,20 @@ namespace InputFlow.App
             _modeComboBox.SelectedIndex = 0;
             _modeComboBox.SelectedIndexChanged += (_, _) => UpdateModeVisibility();
 
-            _triggerTextBox = new TextBox { Dock = DockStyle.Fill, Text = "Ctrl+Shift+Space" };
+            _triggerTextBox = new TextBox { Dock = DockStyle.Fill, Text = "Ctrl+Shift+Space", AccessibleName = "Trigger", TabIndex = 2 };
             _targetComboBox = CreateProfileComboBox(switchableProfiles);
+            _targetComboBox.AccessibleName = "Target profile";
+            _targetComboBox.TabIndex = 3;
             _fallbackComboBox = CreateProfileComboBox(new[] { new ProfileItem("", "(none)") }.Concat(switchableProfiles).ToList());
-            _returnBehaviorComboBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
+            _fallbackComboBox.AccessibleName = "Fallback profile";
+            _fallbackComboBox.TabIndex = 4;
+            _returnBehaviorComboBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = "Return behavior", TabIndex = 5 };
             _returnBehaviorComboBox.Items.Add(new ReturnBehaviorItem("lastNonTarget", "Last non-target profile"));
             _returnBehaviorComboBox.Items.Add(new ReturnBehaviorItem("alwaysSpecificLayout", "Always fallback profile"));
             _returnBehaviorComboBox.Items.Add(new ReturnBehaviorItem("manualOnly", "Manual return only"));
             _returnBehaviorComboBox.SelectedIndex = 0;
 
-            _cycleTargetsList = new CheckedListBox { Dock = DockStyle.Fill, CheckOnClick = true };
+            _cycleTargetsList = new CheckedListBox { Dock = DockStyle.Fill, CheckOnClick = true, AccessibleName = "Cycle targets", TabIndex = 6 };
             foreach (var profile in switchableProfiles)
             {
                 _cycleTargetsList.Items.Add(profile);
@@ -132,10 +136,10 @@ namespace InputFlow.App
                 WrapContents = false
             };
 
-            var saveButton = new Button { Text = "Save", Width = 100, Height = 30 };
+            var saveButton = new Button { Text = "Save", Width = 100, Height = 30, TabIndex = 7 };
             saveButton.Click += (_, _) => Save();
 
-            var cancelButton = new Button { Text = "Cancel", Width = 100, Height = 30 };
+            var cancelButton = new Button { Text = "Cancel", Width = 100, Height = 30, TabIndex = 8 };
             cancelButton.Click += (_, _) =>
             {
                 DialogResult = DialogResult.Cancel;
@@ -144,6 +148,8 @@ namespace InputFlow.App
 
             panel.Controls.Add(saveButton);
             panel.Controls.Add(cancelButton);
+            AcceptButton = saveButton;
+            CancelButton = cancelButton;
             return panel;
         }
 

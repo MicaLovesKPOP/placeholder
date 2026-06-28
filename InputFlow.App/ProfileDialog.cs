@@ -52,15 +52,15 @@ namespace InputFlow.App
             }
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-            _idTextBox = new TextBox { Dock = DockStyle.Fill, Enabled = allowIdEdit };
-            _installedProfileComboBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
+            _idTextBox = new TextBox { Dock = DockStyle.Fill, Enabled = allowIdEdit, AccessibleName = "Profile ID", TabIndex = 0 };
+            _installedProfileComboBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = "Windows profile", TabIndex = 1 };
             foreach (var item in profileItems)
             {
                 _installedProfileComboBox.Items.Add(item);
             }
             _installedProfileComboBox.SelectedIndexChanged += (_, _) => SuggestProfileId();
 
-            _enterModeComboBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
+            _enterModeComboBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = "Enter mode", TabIndex = 2 };
             _enterModeComboBox.Items.Add(new EnterModeItem(null, "(none)"));
             _enterModeComboBox.Items.Add(new EnterModeItem("hangul", "Korean Hangul"));
             _enterModeComboBox.SelectedIndex = 0;
@@ -96,10 +96,10 @@ namespace InputFlow.App
                 WrapContents = false
             };
 
-            var saveButton = new Button { Text = "Save", Width = 100, Height = 30 };
+            var saveButton = new Button { Text = "Save", Width = 100, Height = 30, TabIndex = 3 };
             saveButton.Click += (_, _) => Save();
 
-            var cancelButton = new Button { Text = "Cancel", Width = 100, Height = 30 };
+            var cancelButton = new Button { Text = "Cancel", Width = 100, Height = 30, TabIndex = 4 };
             cancelButton.Click += (_, _) =>
             {
                 DialogResult = DialogResult.Cancel;
@@ -108,6 +108,8 @@ namespace InputFlow.App
 
             panel.Controls.Add(saveButton);
             panel.Controls.Add(cancelButton);
+            AcceptButton = saveButton;
+            CancelButton = cancelButton;
             return panel;
         }
 

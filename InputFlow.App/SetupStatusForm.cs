@@ -49,6 +49,15 @@ namespace InputFlow.App
             StartPosition = FormStartPosition.CenterScreen;
             MinimumSize = new System.Drawing.Size(1080, 560);
             Size = new System.Drawing.Size(1160, 680);
+            KeyPreview = true;
+            KeyDown += (_, e) =>
+            {
+                if (e.KeyCode == Keys.Escape)
+                {
+                    Close();
+                    e.Handled = true;
+                }
+            };
 
             var root = new TableLayoutPanel
             {
@@ -64,9 +73,26 @@ namespace InputFlow.App
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
 
             _configuredProfilesList = CreateListView("Profile ID", "Health", "Matched profile", "Enter mode", "Summary");
+            _configuredProfilesList.AccessibleName = "Configured profiles";
+            _configuredProfilesList.AccessibleDescription = "Profiles InputFlow can use for switching. Press Enter to edit the selected profile, or Delete to remove it.";
+            _configuredProfilesList.DoubleClick += (_, _) => EditSelectedProfile();
+            _configuredProfilesList.KeyDown += (_, e) => HandleConfiguredProfileKeyDown(e);
+
             _installedProfilesList = CreateListView("Installed profile", "Configured as");
+            _installedProfilesList.AccessibleName = "Installed profile options";
+            _installedProfilesList.AccessibleDescription = "Windows input profiles detected by InputFlow.";
+
             _workflowsList = CreateListView("Workflow", "ID", "Mode", "Status", "Triggers", "Targets", "Fallback", "Blocking reasons");
+            _workflowsList.AccessibleName = "Workflow readiness";
+            _workflowsList.AccessibleDescription = "Configured workflows and registration status. Press Enter to edit the selected workflow, or Delete to remove it.";
+            _workflowsList.DoubleClick += (_, _) => EditSelectedWorkflow();
+            _workflowsList.KeyDown += (_, e) => HandleWorkflowKeyDown(e);
+
             _excludedProcessesList = CreateListView("Process name");
+            _excludedProcessesList.AccessibleName = "Excluded processes";
+            _excludedProcessesList.AccessibleDescription = "Processes where InputFlow ignores triggers. Press Delete to remove the selected exclusion.";
+            _excludedProcessesList.DoubleClick += (_, _) => RemoveSelectedExcludedProcess();
+            _excludedProcessesList.KeyDown += (_, e) => HandleExcludedProcessKeyDown(e);
 
             root.Controls.Add(CreateGroup("Configured profiles", _configuredProfilesList), 0, 0);
             root.Controls.Add(CreateGroup("Installed profile options", _installedProfilesList), 0, 1);
@@ -285,6 +311,43 @@ namespace InputFlow.App
             if (result == DialogResult.OK)
             {
                 _removeExcludedProcess(process);
+            }
+        }
+
+        private void HandleConfiguredProfileKeyDown(KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                EditSelectedProfile();
+                e.Handled = true;
+            }
+            else if (e.KeyCode == Keys.Delete)
+            {
+                RemoveSelectedProfile();
+                e.Handled = true;
+            }
+        }
+
+        private void HandleWorkflowKeyDown(KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                EditSelectedWorkflow();
+                e.Handled = true;
+            }
+            else if (e.KeyCode == Keys.Delete)
+            {
+                RemoveSelectedWorkflow();
+                e.Handled = true;
+            }
+        }
+
+        private void HandleExcludedProcessKeyDown(KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Delete)
+            {
+                RemoveSelectedExcludedProcess();
+                e.Handled = true;
             }
         }
 

@@ -32,7 +32,7 @@ namespace InputFlow.App
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
 
-            _processTextBox = new TextBox { Dock = DockStyle.Fill };
+            _processTextBox = new TextBox { Dock = DockStyle.Fill, AccessibleName = "Process name", TabIndex = 0 };
             _errorLabel = new Label
             {
                 Dock = DockStyle.Fill,
@@ -68,10 +68,10 @@ namespace InputFlow.App
                 WrapContents = false
             };
 
-            var saveButton = new Button { Text = "Save", Width = 100, Height = 30 };
+            var saveButton = new Button { Text = "Save", Width = 100, Height = 30, TabIndex = 1 };
             saveButton.Click += (_, _) => Save();
 
-            var cancelButton = new Button { Text = "Cancel", Width = 100, Height = 30 };
+            var cancelButton = new Button { Text = "Cancel", Width = 100, Height = 30, TabIndex = 2 };
             cancelButton.Click += (_, _) =>
             {
                 DialogResult = DialogResult.Cancel;
@@ -80,6 +80,8 @@ namespace InputFlow.App
 
             panel.Controls.Add(saveButton);
             panel.Controls.Add(cancelButton);
+            AcceptButton = saveButton;
+            CancelButton = cancelButton;
             return panel;
         }
 

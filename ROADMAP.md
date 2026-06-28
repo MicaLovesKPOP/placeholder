@@ -66,6 +66,7 @@ Already achieved:
 25. Previous-profile workflows can be configured and run without target profiles.
 26. Tray menu can reset setup by backing up the current config and writing a fresh inventory-backed starter config.
 27. Setup Status can show, add, and remove excluded processes.
+28. Setup dialogs and Setup Status support basic keyboard activation, Escape-to-close, and accessibility labels.
 
 Still missing for a finished product:
 
