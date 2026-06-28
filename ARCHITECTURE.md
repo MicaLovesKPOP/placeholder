@@ -52,6 +52,7 @@ Expected responsibilities:
 - Define config models.
 - Represent input profiles.
 - Enumerate/match available profiles.
+- Build setup models from installed profiles, configured profile health, and workflow readiness for future first-run/settings UI.
 - Manage hotkey state.
 - Switch to target/fallback profiles.
 - Apply target enter mode such as Korean Hangul/native mode.
@@ -66,6 +67,7 @@ InputFlow.Core/ILogger.cs
 InputFlow.Core/InputFlowManager.cs
 InputFlow.Core/InputProfile.cs
 InputFlow.Core/InputProfileManager.cs
+InputFlow.Core/InputFlowSetupModel.cs
 ```
 
 ## InputFlow.Windows
