@@ -201,6 +201,8 @@ namespace InputFlow.App
                         _setupStatusForm = new SetupStatusForm(
                             CopyDiagnostics,
                             () => OpenPath(_configPath, "config file"),
+                            OpenAddProfile,
+                            EditProfile,
                             OpenAddWorkflow,
                             EditWorkflow,
                             RemoveWorkflow);
@@ -215,6 +217,125 @@ namespace InputFlow.App
                 {
                     _logger.Warning($"Cannot open setup status window: {ex.Message}");
                 }
+            }
+
+            private void OpenAddProfile()
+            {
+                var setup = InputFlowSetupModelBuilder.Build(_config, _installedProfiles);
+                if (setup.InstalledProfiles.Count == 0)
+                {
+                    MessageBox.Show(
+                        _setupStatusForm,
+                        "No Windows input profiles were found.",
+                        "InputFlow",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
+                using var dialog = new ProfileDialog(setup.InstalledProfiles);
+                if (dialog.ShowDialog(_setupStatusForm) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                AddProfile(dialog.Draft);
+            }
+
+            private void EditProfile(string profileId)
+            {
+                var definition = _config.Profiles.FirstOrDefault(profile => string.Equals(profile.Id, profileId, StringComparison.OrdinalIgnoreCase));
+                if (definition == null)
+                {
+                    MessageBox.Show(
+                        _setupStatusForm,
+                        $"Profile '{profileId}' was not found.",
+                        "InputFlow",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
+                var setup = InputFlowSetupModelBuilder.Build(_config, _installedProfiles);
+                var configured = setup.ConfiguredProfiles.FirstOrDefault(profile => string.Equals(profile.ProfileId, profileId, StringComparison.OrdinalIgnoreCase));
+                using var dialog = new ProfileDialog(
+                    setup.InstalledProfiles,
+                    new ProfileDraft
+                    {
+                        ProfileId = definition.Id,
+                        InstalledProfile = configured?.MatchedProfile,
+                        EnterMode = definition.EnterMode
+                    },
+                    allowIdEdit: false);
+                if (dialog.ShowDialog(_setupStatusForm) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                SaveProfile(dialog.Draft, profileId);
+            }
+
+            private void AddProfile(ProfileDraft draft)
+            {
+                var updated = CloneConfig(_config);
+                updated.Profiles.Add(CreateProfileDefinition(draft, draft.ProfileId));
+
+                SaveProfileConfig(updated, $"Saved setup profile '{draft.ProfileId}'.", "save");
+            }
+
+            private void SaveProfile(ProfileDraft draft, string profileId)
+            {
+                var updated = CloneConfig(_config);
+                int index = updated.Profiles.FindIndex(profile => string.Equals(profile.Id, profileId, StringComparison.OrdinalIgnoreCase));
+                if (index < 0)
+                {
+                    MessageBox.Show(
+                        _setupStatusForm,
+                        $"Profile '{profileId}' was not found.",
+                        "InputFlow",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
+                updated.Profiles[index] = CreateProfileDefinition(draft, profileId);
+
+                SaveProfileConfig(updated, $"Edited setup profile '{profileId}'.", "edit");
+            }
+
+            private static ProfileDefinition CreateProfileDefinition(ProfileDraft draft, string profileId)
+            {
+                return new ProfileDefinition
+                {
+                    Id = profileId,
+                    Match = new ProfileMatch
+                    {
+                        LanguageTag = GetValidLanguageTag(draft.InstalledProfile),
+                        KLID = draft.InstalledProfile?.KLID
+                    },
+                    EnterMode = draft.EnterMode
+                };
+            }
+
+            private void SaveProfileConfig(InputFlowConfig updated, string successMessage, string operation)
+            {
+                var saveResult = InputFlowConfigWriter.SaveValidated(updated, _configPath);
+                if (!saveResult.Success)
+                {
+                    string message = string.Join(Environment.NewLine, saveResult.Errors);
+                    _logger.Warning($"Setup profile {operation} failed: {message}");
+                    MessageBox.Show(
+                        _setupStatusForm,
+                        message,
+                        $"InputFlow could not {operation} the profile",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
+                _logger.Info(successMessage);
+                ReloadConfig("setup status window");
+                RefreshSetupStatusWindow();
             }
 
             private void OpenAddWorkflow()
@@ -516,6 +637,24 @@ namespace InputFlow.App
                 }
 
                 return slug;
+            }
+
+            private static string? GetValidLanguageTag(InputProfile? profile)
+            {
+                string? languageTag = profile?.LanguageTag;
+                if (string.IsNullOrWhiteSpace(languageTag))
+                {
+                    return null;
+                }
+
+                try
+                {
+                    return CultureInfo.GetCultureInfo(languageTag.Trim()).Name;
+                }
+                catch (CultureNotFoundException)
+                {
+                    return null;
+                }
             }
 
             private void SetupConfigWatcher()

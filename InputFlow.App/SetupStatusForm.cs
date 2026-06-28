@@ -12,14 +12,25 @@ namespace InputFlow.App
         private readonly ListView _workflowsList;
         private readonly Action _copyDiagnostics;
         private readonly Action _openConfig;
+        private readonly Action _addProfile;
+        private readonly Action<string> _editProfile;
         private readonly Action _addWorkflow;
         private readonly Action<string> _editWorkflow;
         private readonly Action<string> _removeWorkflow;
 
-        public SetupStatusForm(Action copyDiagnostics, Action openConfig, Action addWorkflow, Action<string> editWorkflow, Action<string> removeWorkflow)
+        public SetupStatusForm(
+            Action copyDiagnostics,
+            Action openConfig,
+            Action addProfile,
+            Action<string> editProfile,
+            Action addWorkflow,
+            Action<string> editWorkflow,
+            Action<string> removeWorkflow)
         {
             _copyDiagnostics = copyDiagnostics;
             _openConfig = openConfig;
+            _addProfile = addProfile;
+            _editProfile = editProfile;
             _addWorkflow = addWorkflow;
             _editWorkflow = editWorkflow;
             _removeWorkflow = removeWorkflow;
@@ -63,14 +74,18 @@ namespace InputFlow.App
                 _configuredProfilesList.Items.Clear();
                 foreach (var profile in model.ConfiguredProfiles)
                 {
-                    _configuredProfilesList.Items.Add(new ListViewItem(new[]
+                    var item = new ListViewItem(new[]
                     {
                         profile.ProfileId,
                         profile.Health.ToString().ToLowerInvariant(),
                         profile.MatchedProfile == null ? "" : InputProfileManager.FormatProfile(profile.MatchedProfile),
                         profile.EnterMode ?? "",
                         profile.Summary
-                    }));
+                    })
+                    {
+                        Tag = profile.ProfileId
+                    };
+                    _configuredProfilesList.Items.Add(item);
                 }
 
                 _installedProfilesList.Items.Clear();
@@ -132,6 +147,12 @@ namespace InputFlow.App
             var configButton = new Button { Text = "Open Config", Width = 110, Height = 30 };
             configButton.Click += (_, _) => _openConfig();
 
+            var addProfileButton = new Button { Text = "Add Profile", Width = 110, Height = 30 };
+            addProfileButton.Click += (_, _) => _addProfile();
+
+            var editProfileButton = new Button { Text = "Edit Profile", Width = 110, Height = 30 };
+            editProfileButton.Click += (_, _) => EditSelectedProfile();
+
             var addWorkflowButton = new Button { Text = "Add Workflow", Width = 120, Height = 30 };
             addWorkflowButton.Click += (_, _) => _addWorkflow();
 
@@ -144,10 +165,30 @@ namespace InputFlow.App
             panel.Controls.Add(closeButton);
             panel.Controls.Add(copyButton);
             panel.Controls.Add(configButton);
+            panel.Controls.Add(addProfileButton);
+            panel.Controls.Add(editProfileButton);
             panel.Controls.Add(addWorkflowButton);
             panel.Controls.Add(editWorkflowButton);
             panel.Controls.Add(removeWorkflowButton);
             return panel;
+        }
+
+        private void EditSelectedProfile()
+        {
+            if (_configuredProfilesList.SelectedItems.Count == 0)
+            {
+                MessageBox.Show(this, "Select a configured profile first.", "InputFlow", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string? profileId = _configuredProfilesList.SelectedItems[0].Tag as string;
+            if (string.IsNullOrWhiteSpace(profileId))
+            {
+                MessageBox.Show(this, "The selected profile has no ID.", "InputFlow", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            _editProfile(profileId);
         }
 
         private void EditSelectedWorkflow()
