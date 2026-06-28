@@ -8,6 +8,7 @@ InputFlow releases are stage-gated. A stage is complete only when the code, docs
 
 - Release only behavior we can explain and support.
 - Do not claim broad IME mode automation until each IME mode adapter is proven safe.
+- Do not block a release on unsupported app-specific chrome fields when Windows reports the requested input profile and mode as active; document those limitations instead.
 - Preserve working user configs during upgrades.
 - Keep releases lightweight: portable ZIP first, installer later.
 - Every release must include clear limitations and manual Windows test results.
@@ -52,6 +53,7 @@ Must have:
 - Config-driven workflow loading.
 - Tested Dutch US-International <-> Korean Microsoft IME workflow.
 - Korean target enters Hangul/native mode through setter-style IME calls.
+- Release notes document that browser address bars can behave differently from normal page/application text fields.
 - RightAlt single-key trigger support remains explicit and visible.
 - Diagnostics copy includes installed profiles and match reports.
 - GitHub Release can attach a portable Windows x64 ZIP.

@@ -81,6 +81,8 @@ The user also confirmed the optional RightAlt single-key trigger workflow works 
 
 The safe Hangul mode implementation uses explicit IME open/native conversion mode setting, not a blind Hangul-key toggle.
 
+Manual Edge address-bar testing found an application-specific limitation: the Edge omnibox can silently fail to emit Hangul after switching to Korean even when Windows reports that the Korean HKL is active and IMM reports open/native Hangul mode. The same workflow works in normal page text inputs such as the YouTube search field. Treat this as a documented browser chrome limitation unless a reliable supported API path is identified.
+
 A successful log line from the working approach looked like this:
 
 ```text
@@ -129,6 +131,8 @@ This should remain supported, even as the product grows toward multiple workflow
 The Hangul key is a toggle. Sending it blindly can disable Hangul when Hangul was already active.
 
 The safe implementation tries setter-style Windows IME APIs instead. Do not add a blind Hangul-key toggle as a default safe path.
+
+An investigation also tried TSF current-language refresh, Hangul conversion reset, and IME owner-window notifications against the Edge address bar. Logs showed TSF success, HKL verification success, and IMM Hangul/native success, but Edge still failed in its address bar. Do not keep layering speculative switching hacks for that case.
 
 ### 5. Current Build Should Target The App Project Directly
 
@@ -222,6 +226,7 @@ Known or likely limitations:
 - Multi-profile and multi-workflow behavior is not first-class yet.
 - Exact TSF/InputMethodTip profile matching is not implemented.
 - More complex multi-language setups are untested.
+- Browser address bars and other application-owned chrome fields may not refresh IME composition state even when Windows reports the requested profile and mode as active.
 - Elevated foreground apps may not accept input-method switching from non-elevated InputFlow.
 - Single-key triggers may not intercept keys for elevated foreground apps unless InputFlow is also elevated.
 - App icon/branding may still be placeholder/default.

@@ -27,6 +27,7 @@ A complete product should support:
 - Do not hardcode the original English/Korean workflow into the product model.
 - Prefer exact Windows-reported profile identity over loose language-name matching.
 - Treat IME mode changes as state-setting operations where possible, not blind toggles.
+- Do not ship speculative IME workarounds when Windows reports success but a specific app field does not refresh composition state; document the limitation and continue only when a reliable API path is found.
 - Make advanced workflows possible without making the common two-profile toggle noisy.
 - Keep the tray app lightweight and Windows-native.
 - Avoid telemetry, ads, accounts, cloud sync, and forced admin mode by default.
@@ -50,6 +51,7 @@ Already achieved:
 10. Optional single-key trigger support, including a tested RightAlt workflow.
 11. Single-instance guard for the tray app.
 12. GitHub Actions build, x64 publish artifact, and tag-driven release ZIP workflow.
+13. Real-world Edge address bar testing showed that browser chrome can fail to emit Hangul even when TSF language switching, HKL verification, and IMM Hangul/native state all report success; this is now treated as a documented app-field limitation, not a release-blocking core switching failure.
 
 Still missing for a finished product:
 
@@ -99,15 +101,17 @@ Scope:
 1. Build a profile inventory model with language tag, layout name, profile name, HKL, KLID, LANGID, and IME metadata where available.
 2. Improve logs so each configured profile explains why it matched or failed.
 3. Add a diagnostics export/copy path that includes installed profile inventory and app state.
-4. Research and implement TSF/InputMethodTip-backed identity where needed.
+4. Research and implement TSF/InputMethodTip-backed identity where needed, focused on exact profile discovery and matching before using TSF for mode changes.
 5. Preserve existing KLID/HKL behavior that fixed Dutch US-International return switching.
-6. Add tests around profile matching and ambiguous matches.
+6. Add diagnostics that distinguish "Windows reports requested profile/mode active" from "target app field still does not accept IME composition."
+7. Add tests around profile matching and ambiguous matches.
 
 Definition of done:
 
 - Users can distinguish similarly named layouts such as English US and English Netherlands US-International.
 - Ambiguous config produces actionable errors instead of picking a surprising profile silently.
 - Korean Hangul/native mode remains setter-style by default.
+- Known app-specific fields, such as browser address bars, are documented honestly when they cannot be forced through supported profile/mode APIs.
 
 ## Phase 3: Settings UI And First-Run Setup
 

@@ -203,6 +203,17 @@ That matters because Windows remembers whether Korean IME was last in Hangul mod
 
 The current implementation sets Korean IME open/native conversion mode through Windows IME APIs instead.
 
+## Browser Address Bars
+
+InputFlow is designed for normal Windows text input fields. Some browser chrome fields, especially the Microsoft Edge address bar, can keep their own IME composition state even after Windows reports that Korean, Hangul/native mode, and the requested keyboard layout are active.
+
+Known tested behavior:
+
+- Normal page text fields can accept Korean Hangul after InputFlow switches into Korean.
+- The Edge address bar may silently accept no Hangul characters until the IME is manually toggled to Latin mode, one Latin character is typed, and Hangul mode is re-entered.
+
+This is tracked as a browser/omnibox limitation rather than a supported InputFlow fix path until a reliable state-setting API is identified. InputFlow should not add blind Hangul-key toggles or fake text input as the default workaround.
+
 ## Project Structure
 
 ```text
@@ -219,6 +230,7 @@ samples               Example configuration files
 - There is no installer or auto-update flow yet.
 - Hold-to-switch workflow mode is not implemented yet.
 - IME mode automation is only intentionally supported for Korean Hangul/native mode so far.
+- Browser address bars and other application-owned chrome fields may not refresh IME composition state even when Windows reports the requested profile and mode are active.
 - Some Windows language/input setups may require more exact TSF profile matching.
 - Elevated apps may not accept input-method changes from a non-elevated InputFlow process.
 - Hotkeys already used by Windows or another app cannot be registered.
