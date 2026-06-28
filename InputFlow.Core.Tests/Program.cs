@@ -18,6 +18,8 @@ var tests = new (string Name, Action Test)[]
     ("UnsupportedWorkflowModeIsRejected", UnsupportedWorkflowModeIsRejected),
     ("ProfileMatchReportsExplainCompatibilityFallback", ProfileMatchReportsExplainCompatibilityFallback),
     ("ProfileMatchReportsExplainCandidateFailures", ProfileMatchReportsExplainCandidateFailures),
+    ("ProfileMatchReportsExposeHealthStates", ProfileMatchReportsExposeHealthStates),
+    ("AmbiguousProfilesAreNotRuntimeMatches", AmbiguousProfilesAreNotRuntimeMatches),
     ("DiagnosticsReportIncludesProfileInventoryAndMatches", DiagnosticsReportIncludesProfileInventoryAndMatches),
     ("FirstRunConfigUsesInstalledProfiles", FirstRunConfigUsesInstalledProfiles),
     ("FirstRunConfigHandlesUnknownLanguageTags", FirstRunConfigHandlesUnknownLanguageTags)
@@ -255,6 +257,38 @@ static void ProfileMatchReportsExplainCandidateFailures()
     AssertContains(report.Candidates.Select(candidate => candidate.Reason), "LanguageTag expected ja-JP");
 }
 
+static void ProfileMatchReportsExposeHealthStates()
+{
+    var installed = CreateInstalledProfiles();
+    var definitions = new[]
+    {
+        new ProfileDefinition { Id = "matched", Match = new ProfileMatch { LanguageTag = "ko-KR" } },
+        new ProfileDefinition { Id = "missing", Match = new ProfileMatch { LanguageTag = "ja-JP" } },
+        new ProfileDefinition { Id = "ambiguous", Match = new ProfileMatch { LayoutNameContains = "English" } },
+        new ProfileDefinition { Id = "changed", Match = new ProfileMatch { LanguageTag = "en-NL" } }
+    };
+
+    var reports = InputProfileManager.EvaluateProfileMatches(installed, definitions).ToDictionary(report => report.ProfileId);
+
+    AssertEqual(ProfileHealthState.Matched, reports["matched"].Health, "Korean should match exactly.");
+    AssertEqual(ProfileHealthState.Missing, reports["missing"].Health, "Japanese should be missing.");
+    AssertEqual(ProfileHealthState.Ambiguous, reports["ambiguous"].Health, "Two English profiles should be ambiguous.");
+    AssertEqual(ProfileHealthState.Changed, reports["changed"].Health, "Compatibility fallback should be reported as changed.");
+}
+
+static void AmbiguousProfilesAreNotRuntimeMatches()
+{
+    var installed = CreateInstalledProfiles();
+    var definitions = new[]
+    {
+        new ProfileDefinition { Id = "ambiguous", Match = new ProfileMatch { LayoutNameContains = "English" } }
+    };
+
+    var matches = InputProfileManager.MatchProfiles(installed, definitions);
+
+    AssertFalse(matches.ContainsKey("ambiguous"), "Ambiguous profiles should not be active runtime matches.");
+}
+
 static void DiagnosticsReportIncludesProfileInventoryAndMatches()
 {
     var config = CreateKnownWorkingWorkflowConfig();
@@ -262,7 +296,7 @@ static void DiagnosticsReportIncludesProfileInventoryAndMatches()
 
     AssertContains(new[] { report }, "InputFlow diagnostics");
     AssertContains(new[] { report }, "Configured workflows: 1");
-    AssertContains(new[] { report }, "Installed input profiles: 3");
+    AssertContains(new[] { report }, "Installed input profiles: 4");
     AssertContains(new[] { report }, "Configured profile match reports: 2");
     AssertContains(new[] { report }, "F0010413");
     AssertContains(new[] { report }, "Dutch (Netherlands)");
@@ -270,11 +304,12 @@ static void DiagnosticsReportIncludesProfileInventoryAndMatches()
 
 static void FirstRunConfigUsesInstalledProfiles()
 {
-    var config = InputFlowConfigFactory.CreateFirstRunConfig(CreateInstalledProfiles());
+    var installed = CreateInstalledProfiles();
+    var config = InputFlowConfigFactory.CreateFirstRunConfig(installed);
     var errors = InputFlowConfigValidator.Validate(config);
 
     AssertEqual(0, errors.Count, string.Join(Environment.NewLine, errors));
-    AssertEqual(3, config.Profiles.Count, "First-run config should define one profile per installed profile.");
+    AssertEqual(installed.Count, config.Profiles.Count, "First-run config should define one profile per installed profile.");
     AssertEqual(0, config.Workflows.Count, "First-run config should not guess a user's workflow.");
     AssertTrue(config.Profiles.Any(profile => profile.Id == "nl-nl"), "Expected Dutch profile id to come from language tag.");
     AssertTrue(config.Profiles.Any(profile => profile.Id == "en-us"), "Expected English profile id to come from language tag.");
@@ -348,6 +383,7 @@ static IReadOnlyList<InputProfile> CreateInstalledProfiles()
     {
         new InputProfile(new IntPtr(unchecked((int)0xF0010413)), "F0010413", "Dutch (Netherlands)", isIme: true, languageTag: "nl-NL"),
         new InputProfile(new IntPtr(0x00020409), "00020409", "English (United States)", isIme: true, languageTag: "en-US"),
+        new InputProfile(new IntPtr(0x00000409), "00000409", "English (United States)", isIme: false, languageTag: "en-US"),
         new InputProfile(new IntPtr(0xE0010412L), "E0010412", "Korean", isIme: true, languageTag: "ko-KR")
     };
 }

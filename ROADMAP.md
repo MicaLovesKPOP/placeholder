@@ -53,13 +53,14 @@ Already achieved:
 12. GitHub Actions build, x64 publish artifact, and tag-driven release ZIP workflow.
 13. Real-world Edge address bar testing showed that browser chrome can fail to emit Hangul even when TSF language switching, HKL verification, and IMM Hangul/native state all report success; this is now treated as a documented app-field limitation, not a release-blocking core switching failure.
 14. Fresh installs generate an inventory-backed starter config from installed Windows input profiles instead of assuming the original Dutch/Korean setup.
+15. Profile matching reports explicit health states: matched, missing, ambiguous, and changed; ambiguous profiles are not used for runtime switching.
 
 Still missing for a finished product:
 
 1. Settings UI.
 2. Guided first-run setup UI.
 3. First-class multi-profile workflows beyond toggle, direct switch, and basic cycle.
-4. Profile discovery/picker with exact Windows identity.
+4. Profile discovery/picker with exact Windows identity and health-state guidance.
 5. Installer and update UX.
 6. Broader validation and automated tests.
 7. Branding, icon, accessibility, and public-facing documentation polish.
