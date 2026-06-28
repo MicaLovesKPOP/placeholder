@@ -18,7 +18,9 @@ var tests = new (string Name, Action Test)[]
     ("UnsupportedWorkflowModeIsRejected", UnsupportedWorkflowModeIsRejected),
     ("ProfileMatchReportsExplainCompatibilityFallback", ProfileMatchReportsExplainCompatibilityFallback),
     ("ProfileMatchReportsExplainCandidateFailures", ProfileMatchReportsExplainCandidateFailures),
-    ("DiagnosticsReportIncludesProfileInventoryAndMatches", DiagnosticsReportIncludesProfileInventoryAndMatches)
+    ("DiagnosticsReportIncludesProfileInventoryAndMatches", DiagnosticsReportIncludesProfileInventoryAndMatches),
+    ("FirstRunConfigUsesInstalledProfiles", FirstRunConfigUsesInstalledProfiles),
+    ("FirstRunConfigHandlesUnknownLanguageTags", FirstRunConfigHandlesUnknownLanguageTags)
 };
 
 int failed = 0;
@@ -264,6 +266,38 @@ static void DiagnosticsReportIncludesProfileInventoryAndMatches()
     AssertContains(new[] { report }, "Configured profile match reports: 2");
     AssertContains(new[] { report }, "F0010413");
     AssertContains(new[] { report }, "Dutch (Netherlands)");
+}
+
+static void FirstRunConfigUsesInstalledProfiles()
+{
+    var config = InputFlowConfigFactory.CreateFirstRunConfig(CreateInstalledProfiles());
+    var errors = InputFlowConfigValidator.Validate(config);
+
+    AssertEqual(0, errors.Count, string.Join(Environment.NewLine, errors));
+    AssertEqual(3, config.Profiles.Count, "First-run config should define one profile per installed profile.");
+    AssertEqual(0, config.Workflows.Count, "First-run config should not guess a user's workflow.");
+    AssertTrue(config.Profiles.Any(profile => profile.Id == "nl-nl"), "Expected Dutch profile id to come from language tag.");
+    AssertTrue(config.Profiles.Any(profile => profile.Id == "en-us"), "Expected English profile id to come from language tag.");
+
+    var korean = config.Profiles.Single(profile => profile.Id == "ko-kr");
+    AssertEqual("hangul", korean.EnterMode, "Korean should opt into the safe Hangul enter-mode adapter.");
+    AssertEqual("E0010412", korean.Match.KLID, "First-run profile matching should include exact KLID.");
+}
+
+static void FirstRunConfigHandlesUnknownLanguageTags()
+{
+    var installed = new[]
+    {
+        new InputProfile(new IntPtr(0x00001234), "00001234", "Custom Layout", isIme: false)
+    };
+
+    var config = InputFlowConfigFactory.CreateFirstRunConfig(installed);
+    var errors = InputFlowConfigValidator.Validate(config);
+
+    AssertEqual(0, errors.Count, string.Join(Environment.NewLine, errors));
+    AssertEqual(1, config.Profiles.Count, "Expected one generated profile.");
+    AssertEqual("00001234", config.Profiles[0].Match.KLID, "Unknown language profiles should still match by KLID.");
+    AssertEqual(null, config.Profiles[0].Match.LanguageTag, "Unknown language profiles should not emit invalid language tags.");
 }
 
 static InputFlowConfig CreateKnownWorkingWorkflowConfig()

@@ -79,7 +79,7 @@ Purpose:
 Must have:
 
 1. Stable per-user config location instead of config next to whichever EXE folder was unpacked.
-2. First-run setup path or equivalent guided config creation.
+2. First-run setup path or equivalent guided config creation, starting with an inventory-backed starter config and completed by a profile/workflow picker.
 3. Installed-profile picker backed by diagnostics inventory.
 4. Profile health states: matched, missing, ambiguous, and changed.
 5. Workflows for:

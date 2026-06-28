@@ -51,44 +51,7 @@ namespace InputFlow.App
 
             if (!File.Exists(configPath))
             {
-                var defaultConfig = new InputFlowConfig
-                {
-                    Version = InputFlowConfig.CurrentVersion,
-                    Startup = false,
-                    ShowTrayIcon = true,
-                    LogLevel = "Info",
-                    ExcludedProcesses = new List<string> { "mstsc.exe", "vmconnect.exe" },
-                    Profiles = new List<ProfileDefinition>
-                    {
-                        new ProfileDefinition
-                        {
-                            Id = "us-intl",
-                            Match = new ProfileMatch { LanguageTag = "nl-NL" }
-                        },
-                        new ProfileDefinition
-                        {
-                            Id = "korean",
-                            Match = new ProfileMatch { LanguageTag = "ko-KR" },
-                            EnterMode = "hangul"
-                        }
-                    },
-                    Workflows = new List<WorkflowConfig>
-                    {
-                        new WorkflowConfig
-                        {
-                            Id = "korean-toggle",
-                            Name = "Korean toggle",
-                            Mode = "toggle",
-                            Triggers = new List<TriggerConfig>
-                            {
-                                new TriggerConfig { Keys = "RightAlt" }
-                            },
-                            Target = "korean",
-                            ReturnBehavior = "alwaysSpecificLayout",
-                            Fallback = "us-intl"
-                        }
-                    }
-                };
+                var defaultConfig = InputFlowConfigFactory.CreateFirstRunConfig(InputProfileManager.EnumerateInstalledProfiles());
                 var opts = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
                 File.WriteAllText(configPath, System.Text.Json.JsonSerializer.Serialize(defaultConfig, opts));
             }

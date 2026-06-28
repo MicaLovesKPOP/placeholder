@@ -120,9 +120,9 @@ samples/inputflow.sample.json
 
 Config version 2 uses `Workflows`. Existing version 1 configs with `Hotkeys` are migrated in memory when loaded, so existing working configs should continue to run.
 
-The generated `v0.1.x` default config is a temporary seed for Dutch (Netherlands) / United States-International plus Korean Microsoft IME. It is not the long-term preset model. Future releases should replace this with first-run setup, profile discovery, and user-chosen workflows. If your installed profiles differ, use tray `Copy Diagnostics`, inspect the installed profile list, and adjust `Profiles` in `%APPDATA%\InputFlow\inputflow.json`.
+On a fresh install, InputFlow creates a starter config from the input profiles Windows reports as installed. That starter config defines profile entries but does not guess which workflow or trigger you want. Add a `Workflows` entry manually or start from `samples/inputflow.sample.json` until the settings UI is available.
 
-The default trigger is `RightAlt`. When used as a single-key trigger, InputFlow suppresses that key while running, so it also replaces normal AltGr behavior for layouts that use AltGr. Change the trigger if you need AltGr for typing characters.
+The sample Korean toggle uses `RightAlt`. When used as a single-key trigger, InputFlow suppresses that key while running, so it also replaces normal AltGr behavior for layouts that use AltGr. Choose a different trigger if you need AltGr for typing characters.
 
 Example toggle workflow:
 
