@@ -68,6 +68,7 @@ namespace InputFlow.App
             _modeComboBox.Items.Add(new ModeItem("toggle", "Toggle"));
             _modeComboBox.Items.Add(new ModeItem("switchTo", "Direct switch"));
             _modeComboBox.Items.Add(new ModeItem("cycle", "Cycle"));
+            _modeComboBox.Items.Add(new ModeItem("previous", "Previous profile"));
             _modeComboBox.SelectedIndex = 0;
             _modeComboBox.SelectedIndexChanged += (_, _) => UpdateModeVisibility();
 
@@ -195,6 +196,10 @@ namespace InputFlow.App
                     return;
                 }
             }
+            else if (mode.Equals("previous", StringComparison.OrdinalIgnoreCase))
+            {
+                // Previous-profile workflows intentionally do not have a target.
+            }
             else if (target == null || string.IsNullOrWhiteSpace(target.ProfileId))
             {
                 _errorLabel.Text = "Target profile is required.";
@@ -214,7 +219,7 @@ namespace InputFlow.App
                 Name = _nameTextBox.Text.Trim(),
                 Mode = mode,
                 Trigger = parsedTrigger.NormalizedKeys,
-                TargetProfileId = mode.Equals("cycle", StringComparison.OrdinalIgnoreCase) ? null : target?.ProfileId,
+                TargetProfileId = mode.Equals("cycle", StringComparison.OrdinalIgnoreCase) || mode.Equals("previous", StringComparison.OrdinalIgnoreCase) ? null : target?.ProfileId,
                 TargetProfileIds = cycleTargets,
                 FallbackProfileId = mode.Equals("toggle", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(fallback?.ProfileId) ? fallback.ProfileId : null,
                 ReturnBehavior = mode.Equals("toggle", StringComparison.OrdinalIgnoreCase) ? returnBehavior?.Value ?? "lastNonTarget" : "lastNonTarget"
@@ -229,9 +234,10 @@ namespace InputFlow.App
             string mode = GetSelectedMode();
             bool isCycle = mode.Equals("cycle", StringComparison.OrdinalIgnoreCase);
             bool isToggle = mode.Equals("toggle", StringComparison.OrdinalIgnoreCase);
+            bool isPrevious = mode.Equals("previous", StringComparison.OrdinalIgnoreCase);
 
-            _targetLabel.Visible = !isCycle;
-            _targetComboBox.Visible = !isCycle;
+            _targetLabel.Visible = !isCycle && !isPrevious;
+            _targetComboBox.Visible = !isCycle && !isPrevious;
             _cycleTargetsLabel.Visible = isCycle;
             _cycleTargetsList.Visible = isCycle;
             _fallbackLabel.Visible = isToggle;

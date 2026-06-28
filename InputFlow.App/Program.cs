@@ -871,7 +871,9 @@ namespace InputFlow.App
                         _logger.Warning($"Workflow '{GetWorkflowDisplayName(workflow)}' references fallback profile '{workflow.Fallback}' that did not match an installed profile.");
                     }
 
-                    var enterModesByKlid = BuildEnterModeMap(targetIds, targets, workflow.Fallback, fallback);
+                    var enterModesByKlid = IsPreviousWorkflow(workflow)
+                        ? BuildAllMatchedEnterModeMap(matched)
+                        : BuildEnterModeMap(targetIds, targets, workflow.Fallback, fallback);
 
                     foreach (var trigger in workflow.Triggers)
                     {
@@ -927,6 +929,11 @@ namespace InputFlow.App
                 targetIds = GetWorkflowTargetIds(workflow).ToList();
                 targets = new List<InputProfile>();
 
+                if (IsPreviousWorkflow(workflow))
+                {
+                    return true;
+                }
+
                 if (targetIds.Count == 0)
                 {
                     _logger.Warning($"Workflow '{GetWorkflowDisplayName(workflow)}' does not define any target profiles. Skipping.");
@@ -949,6 +956,11 @@ namespace InputFlow.App
 
             private static IReadOnlyList<string> GetWorkflowTargetIds(WorkflowConfig workflow)
             {
+                if (IsPreviousWorkflow(workflow))
+                {
+                    return Array.Empty<string>();
+                }
+
                 if (string.Equals(workflow.Mode, "cycle", StringComparison.OrdinalIgnoreCase))
                 {
                     return workflow.Targets
@@ -960,6 +972,25 @@ namespace InputFlow.App
                 return string.IsNullOrWhiteSpace(workflow.Target)
                     ? Array.Empty<string>()
                     : new[] { workflow.Target.Trim() };
+            }
+
+            private static bool IsPreviousWorkflow(WorkflowConfig workflow)
+            {
+                return string.Equals(workflow.Mode, "previous", StringComparison.OrdinalIgnoreCase);
+            }
+
+            private Dictionary<string, string?> BuildAllMatchedEnterModeMap(IReadOnlyDictionary<string, InputProfile> matched)
+            {
+                var result = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+                foreach (var pair in matched)
+                {
+                    if (!result.ContainsKey(pair.Value.KLID))
+                    {
+                        result[pair.Value.KLID] = GetEnterModeForProfileId(pair.Key);
+                    }
+                }
+
+                return result;
             }
 
             private Dictionary<string, string?> BuildEnterModeMap(

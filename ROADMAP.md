@@ -63,6 +63,7 @@ Already achieved:
 22. Fresh installs open Setup Status after generating the inventory-backed starter config.
 23. Setup Status can remove unused configured profiles and blocks removal when workflows still reference them.
 24. Tray menu can enable or disable Start with Windows for the current user.
+25. Previous-profile workflows can be configured and run without target profiles.
 
 Still missing for a finished product:
 

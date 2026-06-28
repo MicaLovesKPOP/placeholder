@@ -101,7 +101,7 @@ The tray menu includes:
 - Pause/Resume
 - Exit
 
-`Setup Status` opens a window with configured profile health, installed profile options, and workflow readiness. It can add or remap configured profiles to installed Windows profiles, and add, edit, or remove toggle, direct-switch, and cycle workflows.
+`Setup Status` opens a window with configured profile health, installed profile options, and workflow readiness. It can add or remap configured profiles to installed Windows profiles, and add, edit, or remove toggle, direct-switch, cycle, and previous-profile workflows.
 
 `Copy Diagnostics` copies a text report with config summary, workflows, installed input profiles, setup profile options, configured-profile match results, and workflow readiness. This is the preferred information to paste into bug reports when a Windows layout or IME does not match as expected.
 
@@ -112,7 +112,7 @@ Configured profile reports include health states:
 - `ambiguous`: more than one installed profile matched; InputFlow will not use that profile for runtime switching until the criteria are made more exact.
 - `changed`: InputFlow recovered through a compatibility fallback, but the config should be reviewed.
 
-Workflow readiness reports whether each configured workflow is ready or blocked. Blocked workflows include reasons such as missing triggers, missing targets, ambiguous profile matches, or missing profile matches.
+Workflow readiness reports whether each configured workflow is ready or blocked. Blocked workflows include reasons such as missing triggers, missing targets where a target is required, ambiguous profile matches, or missing profile matches.
 
 Setup profile options show every Windows profile InputFlow can see and which configured profile IDs already point at it.
 
@@ -182,6 +182,19 @@ Example cycle workflow:
     { "Keys": "Ctrl+Shift+Space" }
   ],
   "Targets": ["us-intl", "korean", "japanese"]
+}
+```
+
+Example previous-profile workflow:
+
+```json
+{
+  "Id": "previous-profile",
+  "Name": "Previous profile",
+  "Mode": "previous",
+  "Triggers": [
+    { "Keys": "Ctrl+Shift+Backspace" }
+  ]
 }
 ```
 

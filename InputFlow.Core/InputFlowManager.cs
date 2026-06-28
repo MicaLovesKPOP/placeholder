@@ -19,6 +19,7 @@ namespace InputFlow.Core
         private readonly ILogger _logger;
         private readonly Dictionary<int, HotkeyState> _hotkeyStates = new();
         private HashSet<string> _excludedProcessNames;
+        private InputProfile? _previousProfile;
 
         /// <summary>
         /// Indicates whether InputFlow is currently paused. When paused, toggle
@@ -47,6 +48,10 @@ namespace InputFlow.Core
         {
             _installedProfiles = installedProfiles ?? Array.Empty<InputProfile>();
             _excludedProcessNames = new HashSet<string>(excludedProcesses ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+            if (_previousProfile != null)
+            {
+                _previousProfile = _installedProfiles.FirstOrDefault(profile => ProfilesEqual(profile, _previousProfile));
+            }
         }
 
         /// <summary>
@@ -82,7 +87,8 @@ namespace InputFlow.Core
             string returnBehavior,
             IReadOnlyDictionary<string, string?> enterModesByKlid)
         {
-            if (targets == null || targets.Count == 0)
+            var workflowMode = ParseWorkflowMode(mode);
+            if (workflowMode != WorkflowMode.Previous && (targets == null || targets.Count == 0))
             {
                 _logger.Error($"Cannot register workflow hotkey ID {id}: no target profiles were provided.");
                 return;
@@ -90,8 +96,8 @@ namespace InputFlow.Core
 
             _hotkeyStates[id] = new HotkeyState
             {
-                Mode = ParseWorkflowMode(mode),
-                Targets = targets.ToList(),
+                Mode = workflowMode,
+                Targets = targets?.ToList() ?? new List<InputProfile>(),
                 Fallback = fallback,
                 ReturnBehavior = ParseReturnBehavior(returnBehavior),
                 EnterModesByKlid = CopyEnterModeMap(enterModesByKlid)
@@ -129,10 +135,13 @@ namespace InputFlow.Core
             switch (state.Mode)
             {
                 case WorkflowMode.SwitchTo:
-                    SwitchToFirstTarget(state, "Switched to target");
+                    SwitchToFirstTarget(state, current, "Switched to target");
                     break;
                 case WorkflowMode.Cycle:
                     CycleToNextTarget(state, current);
+                    break;
+                case WorkflowMode.Previous:
+                    SwitchToPreviousProfile(state, current);
                     break;
                 case WorkflowMode.Toggle:
                 default:
@@ -187,7 +196,7 @@ namespace InputFlow.Core
                     return;
                 }
 
-                bool success = SwitchTo(dest);
+                bool success = SwitchToRememberingCurrent(dest, current);
                 if (success)
                 {
                     ApplyEnterModeIfNeeded(GetEnterModeForTarget(state, dest));
@@ -202,7 +211,7 @@ namespace InputFlow.Core
             else
             {
                 state.PreviousNonTarget = current;
-                bool success = SwitchTo(target);
+                bool success = SwitchToRememberingCurrent(target, current);
                 if (success)
                 {
                     ApplyEnterModeIfNeeded(GetEnterModeForTarget(state, target));
@@ -215,10 +224,10 @@ namespace InputFlow.Core
             }
         }
 
-        private void SwitchToFirstTarget(HotkeyState state, string successPrefix)
+        private void SwitchToFirstTarget(HotkeyState state, InputProfile current, string successPrefix)
         {
             InputProfile target = state.Targets[0];
-            bool success = SwitchTo(target);
+            bool success = SwitchToRememberingCurrent(target, current);
             if (success)
             {
                 ApplyEnterModeIfNeeded(GetEnterModeForTarget(state, target));
@@ -227,6 +236,33 @@ namespace InputFlow.Core
             else
             {
                 _logger.Error($"Failed to switch to target {target.FriendlyName}");
+            }
+        }
+
+        private void SwitchToPreviousProfile(HotkeyState state, InputProfile current)
+        {
+            if (_previousProfile == null)
+            {
+                _logger.Warning("No previous profile is available; not switching.");
+                return;
+            }
+
+            InputProfile target = _previousProfile;
+            if (ProfilesEqual(current, target))
+            {
+                _logger.Info("Previous profile is already active; not switching.");
+                return;
+            }
+
+            bool success = SwitchToRememberingCurrent(target, current);
+            if (success)
+            {
+                ApplyEnterModeIfNeeded(GetEnterModeForTarget(state, target));
+                _logger.Info($"Switched to previous profile {target.FriendlyName}");
+            }
+            else
+            {
+                _logger.Error($"Failed to switch to previous profile {target.FriendlyName}");
             }
         }
 
@@ -247,7 +283,7 @@ namespace InputFlow.Core
                 state.PreviousNonTarget = current;
             }
 
-            bool success = SwitchTo(target);
+            bool success = SwitchToRememberingCurrent(target, current);
             if (success)
             {
                 ApplyEnterModeIfNeeded(GetEnterModeForTarget(state, target));
@@ -267,6 +303,17 @@ namespace InputFlow.Core
         {
             if (a == null || b == null) return false;
             return string.Equals(a.KLID, b.KLID, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private bool SwitchToRememberingCurrent(InputProfile target, InputProfile current)
+        {
+            bool success = SwitchTo(target);
+            if (success && !ProfilesEqual(current, target))
+            {
+                _previousProfile = current;
+            }
+
+            return success;
         }
 
         /// <summary>
@@ -436,7 +483,8 @@ namespace InputFlow.Core
         {
             Toggle,
             SwitchTo,
-            Cycle
+            Cycle,
+            Previous
         }
 
         private enum ReturnBehavior
@@ -646,6 +694,7 @@ namespace InputFlow.Core
             {
                 "switchto" => WorkflowMode.SwitchTo,
                 "cycle" => WorkflowMode.Cycle,
+                "previous" => WorkflowMode.Previous,
                 _ => WorkflowMode.Toggle,
             };
         }

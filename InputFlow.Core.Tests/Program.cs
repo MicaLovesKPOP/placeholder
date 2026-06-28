@@ -13,6 +13,7 @@ var tests = new (string Name, Action Test)[]
     ("TriggerParserRecognizesChordsAndSingleKeys", TriggerParserRecognizesChordsAndSingleKeys),
     ("CycleWorkflowRequiresTwoTargets", CycleWorkflowRequiresTwoTargets),
     ("ThreeProfileCycleConfigIsValid", ThreeProfileCycleConfigIsValid),
+    ("PreviousWorkflowConfigIsValidWithoutTarget", PreviousWorkflowConfigIsValidWithoutTarget),
     ("ProfilesRequireMatchCriteria", ProfilesRequireMatchCriteria),
     ("MalformedJsonReturnsLoadErrors", MalformedJsonReturnsLoadErrors),
     ("LegacyLoadFallsBackToDefaultsOnInvalidConfig", LegacyLoadFallsBackToDefaultsOnInvalidConfig),
@@ -26,6 +27,7 @@ var tests = new (string Name, Action Test)[]
     ("AmbiguousProfilesAreNotRuntimeMatches", AmbiguousProfilesAreNotRuntimeMatches),
     ("DiagnosticsReportIncludesProfileInventoryAndMatches", DiagnosticsReportIncludesProfileInventoryAndMatches),
     ("DiagnosticsReportIncludesWorkflowReadiness", DiagnosticsReportIncludesWorkflowReadiness),
+    ("DiagnosticsReportIncludesPreviousWorkflowReadiness", DiagnosticsReportIncludesPreviousWorkflowReadiness),
     ("DiagnosticsReportIncludesBlockedWorkflowReasons", DiagnosticsReportIncludesBlockedWorkflowReasons),
     ("FirstRunConfigUsesInstalledProfiles", FirstRunConfigUsesInstalledProfiles),
     ("FirstRunConfigHandlesUnknownLanguageTags", FirstRunConfigHandlesUnknownLanguageTags),
@@ -170,6 +172,22 @@ static void ThreeProfileCycleConfigIsValid()
         Mode = "cycle",
         Triggers = new List<TriggerConfig> { new TriggerConfig { Keys = "Ctrl+Shift+Space" } },
         Targets = new List<string> { "us-intl", "korean", "japanese" }
+    });
+
+    var errors = InputFlowConfigValidator.Validate(config);
+
+    AssertEqual(0, errors.Count, string.Join(Environment.NewLine, errors));
+}
+
+static void PreviousWorkflowConfigIsValidWithoutTarget()
+{
+    var config = CreateKnownWorkingWorkflowConfig();
+    config.Workflows.Add(new WorkflowConfig
+    {
+        Id = "previous-profile",
+        Name = "Previous profile",
+        Mode = "previous",
+        Triggers = new List<TriggerConfig> { new TriggerConfig { Keys = "Ctrl+Shift+Backspace" } }
     });
 
     var errors = InputFlowConfigValidator.Validate(config);
@@ -394,6 +412,23 @@ static void DiagnosticsReportIncludesWorkflowReadiness()
     AssertContains(new[] { report }, "triggers=RightAlt");
     AssertContains(new[] { report }, "targets=korean");
     AssertContains(new[] { report }, "fallback=us-intl");
+}
+
+static void DiagnosticsReportIncludesPreviousWorkflowReadiness()
+{
+    var config = CreateKnownWorkingWorkflowConfig();
+    config.Workflows.Add(new WorkflowConfig
+    {
+        Id = "previous-profile",
+        Name = "Previous profile",
+        Mode = "previous",
+        Triggers = new List<TriggerConfig> { new TriggerConfig { Keys = "Ctrl+Shift+Backspace" } }
+    });
+
+    var report = InputFlowDiagnostics.BuildReport(config, CreateInstalledProfiles(), "C:\\InputFlow\\inputflow.json", "C:\\InputFlow\\inputflow.log");
+
+    AssertContains(new[] { report }, "Previous profile (previous-profile) mode=previous status=ready");
+    AssertContains(new[] { report }, "targets=(none)");
 }
 
 static void DiagnosticsReportIncludesBlockedWorkflowReasons()

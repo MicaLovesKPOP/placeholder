@@ -186,7 +186,7 @@ namespace InputFlow.Core
                 blockingReasons.Add("No trigger is configured.");
             }
 
-            if (targets.Count == 0)
+            if (targets.Count == 0 && !IsPreviousWorkflow(workflow))
             {
                 blockingReasons.Add("No target profile is configured.");
             }
@@ -232,6 +232,11 @@ namespace InputFlow.Core
 
         private static IReadOnlyList<string> GetWorkflowTargetIds(WorkflowConfig workflow)
         {
+            if (IsPreviousWorkflow(workflow))
+            {
+                return Array.Empty<string>();
+            }
+
             if (string.Equals(workflow.Mode, "cycle", StringComparison.OrdinalIgnoreCase))
             {
                 return workflow.Targets
@@ -243,6 +248,11 @@ namespace InputFlow.Core
             return string.IsNullOrWhiteSpace(workflow.Target)
                 ? Array.Empty<string>()
                 : new[] { workflow.Target.Trim() };
+        }
+
+        private static bool IsPreviousWorkflow(WorkflowConfig workflow)
+        {
+            return string.Equals(workflow.Mode, "previous", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string GetWorkflowDisplayName(WorkflowConfig workflow)

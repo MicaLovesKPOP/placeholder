@@ -26,7 +26,8 @@ namespace InputFlow.Core
         {
             "toggle",
             "switchTo",
-            "cycle"
+            "cycle",
+            "previous"
         };
 
         private static readonly HashSet<string> SupportedReturnBehaviors = new(StringComparer.OrdinalIgnoreCase)
@@ -200,6 +201,11 @@ namespace InputFlow.Core
 
         private static void ValidateWorkflowTargets(WorkflowConfig workflow, string label, string mode, HashSet<string> profileIds, List<string> errors)
         {
+            if (mode.Equals("previous", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
             if (mode.Equals("cycle", StringComparison.OrdinalIgnoreCase))
             {
                 if (workflow.Targets == null || workflow.Targets.Count < 2)
@@ -245,7 +251,9 @@ namespace InputFlow.Core
 
         private static void ValidateWorkflowReturnBehavior(WorkflowConfig workflow, string label, string mode, List<string> errors)
         {
-            if (mode.Equals("cycle", StringComparison.OrdinalIgnoreCase) || mode.Equals("switchTo", StringComparison.OrdinalIgnoreCase))
+            if (mode.Equals("cycle", StringComparison.OrdinalIgnoreCase) ||
+                mode.Equals("switchTo", StringComparison.OrdinalIgnoreCase) ||
+                mode.Equals("previous", StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
