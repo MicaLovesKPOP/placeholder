@@ -59,7 +59,7 @@ namespace InputFlow.Core
             builder.AppendLine($"Configured profile match reports: {reports.Count}");
             foreach (var report in reports)
             {
-                builder.AppendLine($"- {report.ProfileId}: {(report.IsMatch ? "matched" : "not matched")} - {report.Summary}");
+                builder.AppendLine($"- {report.ProfileId}: {report.Health.ToString().ToLowerInvariant()} - {report.Summary}");
                 if (report.MatchedProfile != null)
                 {
                     builder.AppendLine($"  selected: {InputProfileManager.FormatProfile(report.MatchedProfile)}");

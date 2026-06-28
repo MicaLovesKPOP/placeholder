@@ -101,6 +101,13 @@ The tray menu includes:
 
 `Copy Diagnostics` copies a text report with config summary, workflows, installed input profiles, and configured-profile match results. This is the preferred information to paste into bug reports when a Windows layout or IME does not match as expected.
 
+Configured profile reports include health states:
+
+- `matched`: exactly one installed profile matched the configured criteria.
+- `missing`: no installed profile matched.
+- `ambiguous`: more than one installed profile matched; InputFlow will not use that profile for runtime switching until the criteria are made more exact.
+- `changed`: InputFlow recovered through a compatibility fallback, but the config should be reviewed.
+
 ## Configuration
 
 InputFlow stores runtime files in stable per-user locations:

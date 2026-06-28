@@ -141,7 +141,7 @@ namespace InputFlow.Core
             var result = new Dictionary<string, InputProfile>(StringComparer.OrdinalIgnoreCase);
             foreach (var report in EvaluateProfileMatches(installed, definitions))
             {
-                if (report.MatchedProfile != null)
+                if (report.MatchedProfile != null && report.Health != ProfileHealthState.Ambiguous)
                 {
                     result[report.ProfileId] = report.MatchedProfile;
                 }
@@ -167,6 +167,7 @@ namespace InputFlow.Core
         {
             var criteria = definition.Match ?? new ProfileMatch();
             var candidates = new List<ProfileCandidateMatch>();
+            var matchedCandidates = new List<ProfileCandidateMatch>();
 
             foreach (var profile in installed)
             {
@@ -174,14 +175,32 @@ namespace InputFlow.Core
                 candidates.Add(candidate);
                 if (candidate.IsMatch)
                 {
-                    return new ProfileMatchReport(
-                        definition.Id,
-                        criteria,
-                        candidate.Profile,
-                        "Matched all configured criteria.",
-                        usedCompatibilityFallback: false,
-                        candidates);
+                    matchedCandidates.Add(candidate);
                 }
+            }
+
+            if (matchedCandidates.Count == 1)
+            {
+                return new ProfileMatchReport(
+                    definition.Id,
+                    criteria,
+                    matchedCandidates[0].Profile,
+                    "Matched all configured criteria.",
+                    usedCompatibilityFallback: false,
+                    candidates,
+                    ProfileHealthState.Matched);
+            }
+
+            if (matchedCandidates.Count > 1)
+            {
+                return new ProfileMatchReport(
+                    definition.Id,
+                    criteria,
+                    matchedCandidates[0].Profile,
+                    $"Ambiguous match: {matchedCandidates.Count} installed profiles matched all configured criteria.",
+                    usedCompatibilityFallback: false,
+                    candidates,
+                    ProfileHealthState.Ambiguous);
             }
 
             InputProfile? compatibilityMatch = MatchEnglishNetherlandsUsInternationalCompatibility(installed, criteria);
@@ -193,7 +212,8 @@ namespace InputFlow.Core
                     compatibilityMatch,
                     "Matched English (Netherlands) / US-International compatibility fallback by KLID 00020409.",
                     usedCompatibilityFallback: true,
-                    candidates);
+                    candidates,
+                    ProfileHealthState.Changed);
             }
 
             return new ProfileMatchReport(
@@ -202,7 +222,8 @@ namespace InputFlow.Core
                 matchedProfile: null,
                 summary: "No installed profile matched all configured criteria.",
                 usedCompatibilityFallback: false,
-                candidates);
+                candidates,
+                ProfileHealthState.Missing);
         }
 
         private static ProfileCandidateMatch EvaluateCandidate(InputProfile profile, ProfileMatch criteria)
@@ -295,7 +316,8 @@ namespace InputFlow.Core
             InputProfile? matchedProfile,
             string summary,
             bool usedCompatibilityFallback,
-            IReadOnlyList<ProfileCandidateMatch> candidates)
+            IReadOnlyList<ProfileCandidateMatch> candidates,
+            ProfileHealthState health)
         {
             ProfileId = profileId;
             Criteria = criteria;
@@ -303,6 +325,7 @@ namespace InputFlow.Core
             Summary = summary;
             UsedCompatibilityFallback = usedCompatibilityFallback;
             Candidates = candidates;
+            Health = health;
         }
 
         public string ProfileId { get; }
@@ -312,6 +335,15 @@ namespace InputFlow.Core
         public bool UsedCompatibilityFallback { get; }
         public IReadOnlyList<ProfileCandidateMatch> Candidates { get; }
         public bool IsMatch => MatchedProfile != null;
+        public ProfileHealthState Health { get; }
+    }
+
+    public enum ProfileHealthState
+    {
+        Matched,
+        Missing,
+        Ambiguous,
+        Changed
     }
 
     /// <summary>

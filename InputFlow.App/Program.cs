@@ -525,11 +525,11 @@ namespace InputFlow.App
                 {
                     if (report.MatchedProfile != null)
                     {
-                        _logger.Info($"Configured profile '{report.ProfileId}' matched {InputProfileManager.FormatProfile(report.MatchedProfile)} using {InputFlowDiagnostics.FormatMatchCriteria(report.Criteria)}. {report.Summary}");
+                        _logger.Info($"Configured profile '{report.ProfileId}' health={report.Health} matched {InputProfileManager.FormatProfile(report.MatchedProfile)} using {InputFlowDiagnostics.FormatMatchCriteria(report.Criteria)}. {report.Summary}");
                     }
                     else
                     {
-                        _logger.Warning($"Configured profile '{report.ProfileId}' did not match any installed profile using {InputFlowDiagnostics.FormatMatchCriteria(report.Criteria)}. {report.Summary}");
+                        _logger.Warning($"Configured profile '{report.ProfileId}' health={report.Health} did not match any installed profile using {InputFlowDiagnostics.FormatMatchCriteria(report.Criteria)}. {report.Summary}");
                     }
 
                     foreach (var candidate in report.Candidates)
