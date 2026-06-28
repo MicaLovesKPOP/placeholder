@@ -138,6 +138,8 @@ On a fresh install, InputFlow creates a starter config from the input profiles W
 
 The sample Korean toggle uses `RightAlt`. When used as a single-key trigger, InputFlow suppresses that key while running, so it also replaces normal AltGr behavior for layouts that use AltGr. Choose a different trigger if you need AltGr for typing characters.
 
+Triggers are written as one key with optional modifiers, such as `Ctrl+Shift+Space`, `Ctrl+Alt+K`, `F13`, or `RightAlt`. Supported modifiers are `Ctrl`, `Alt`, `Shift`, and `Win`. Supported key names include letters, digits, `F1` through `F24`, common navigation keys, and side-specific modifier keys such as `RightAlt`, `LeftAlt`, `RightCtrl`, and `LeftShift`.
+
 Example toggle workflow:
 
 ```json

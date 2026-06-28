@@ -187,6 +187,14 @@ namespace InputFlow.Core
                 {
                     errors.Add($"{label}.Triggers[{i}].Keys is required.");
                 }
+                else
+                {
+                    var parseResult = InputFlowTriggerParser.Parse(trigger.Keys);
+                    if (!parseResult.Success)
+                    {
+                        errors.Add($"{label}.Triggers[{i}].Keys '{trigger.Keys}' is invalid: {parseResult.Error}");
+                    }
+                }
             }
         }
 

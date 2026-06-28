@@ -136,6 +136,27 @@ namespace InputFlow.App
                 return;
             }
 
+            var parsedTrigger = InputFlowTriggerParser.Parse(_triggerTextBox.Text);
+            if (!parsedTrigger.Success)
+            {
+                _errorLabel.Text = parsedTrigger.Error ?? "Trigger is invalid.";
+                return;
+            }
+
+            if (parsedTrigger.IsSingleKeyTrigger)
+            {
+                var result = MessageBox.Show(
+                    this,
+                    $"'{parsedTrigger.NormalizedKeys}' is a single-key trigger. InputFlow will suppress that key while it is running.",
+                    "InputFlow single-key trigger",
+                    MessageBoxButtons.OKCancel,
+                    MessageBoxIcon.Warning);
+                if (result != DialogResult.OK)
+                {
+                    return;
+                }
+            }
+
             if (_targetComboBox.SelectedItem is not ProfileItem target || string.IsNullOrWhiteSpace(target.ProfileId))
             {
                 _errorLabel.Text = "Target profile is required.";
@@ -154,7 +175,7 @@ namespace InputFlow.App
             Draft = new ToggleWorkflowDraft
             {
                 Name = _nameTextBox.Text.Trim(),
-                Trigger = _triggerTextBox.Text.Trim(),
+                Trigger = parsedTrigger.NormalizedKeys,
                 TargetProfileId = target.ProfileId,
                 FallbackProfileId = string.IsNullOrWhiteSpace(fallback?.ProfileId) ? null : fallback.ProfileId,
                 ReturnBehavior = returnBehavior?.Value ?? "lastNonTarget"

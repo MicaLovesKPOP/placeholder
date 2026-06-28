@@ -9,6 +9,8 @@ var tests = new (string Name, Action Test)[]
     ("CurrentWorkflowConfigIsValid", CurrentWorkflowConfigIsValid),
     ("LegacyV1HotkeysMigrateToWorkflows", LegacyV1HotkeysMigrateToWorkflows),
     ("InvalidWorkflowProfileReferenceIsRejected", InvalidWorkflowProfileReferenceIsRejected),
+    ("InvalidWorkflowTriggerIsRejected", InvalidWorkflowTriggerIsRejected),
+    ("TriggerParserRecognizesChordsAndSingleKeys", TriggerParserRecognizesChordsAndSingleKeys),
     ("CycleWorkflowRequiresTwoTargets", CycleWorkflowRequiresTwoTargets),
     ("ThreeProfileCycleConfigIsValid", ThreeProfileCycleConfigIsValid),
     ("ProfilesRequireMatchCriteria", ProfilesRequireMatchCriteria),
@@ -108,6 +110,32 @@ static void InvalidWorkflowProfileReferenceIsRejected()
     var errors = InputFlowConfigValidator.Validate(config);
 
     AssertContains(errors, "Fallback references unknown profile 'missing'");
+}
+
+static void InvalidWorkflowTriggerIsRejected()
+{
+    var config = CreateKnownWorkingWorkflowConfig();
+    config.Workflows[0].Triggers[0].Keys = "Ctrl+NoSuchKey";
+
+    var errors = InputFlowConfigValidator.Validate(config);
+
+    AssertContains(errors, "Keys 'Ctrl+NoSuchKey' is invalid");
+}
+
+static void TriggerParserRecognizesChordsAndSingleKeys()
+{
+    var chord = InputFlowTriggerParser.Parse("ctrl + shift + f12");
+    var single = InputFlowTriggerParser.Parse("Right Alt");
+    var invalid = InputFlowTriggerParser.Parse("Ctrl+K+L");
+
+    AssertTrue(chord.Success, chord.Error ?? "Chord should parse.");
+    AssertEqual(InputFlowTriggerParser.ModControl | InputFlowTriggerParser.ModShift, chord.Modifiers, "Chord modifiers should parse.");
+    AssertEqual(0x7B, chord.VirtualKey, "F12 virtual key should parse.");
+    AssertEqual("Ctrl+Shift+F12", chord.NormalizedKeys, "Chord should normalize.");
+    AssertTrue(single.Success, single.Error ?? "Single key should parse.");
+    AssertTrue(single.IsSingleKeyTrigger, "RightAlt should be reported as a single-key trigger.");
+    AssertEqual("RightAlt", single.NormalizedKeys, "Single key should normalize.");
+    AssertFalse(invalid.Success, "Multiple non-modifier keys should fail.");
 }
 
 static void CycleWorkflowRequiresTwoTargets()

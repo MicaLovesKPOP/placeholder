@@ -473,14 +473,17 @@ namespace InputFlow.App
                             continue;
                         }
 
-                        if (!TryParseHotkey(trigger.Keys, out uint mods, out int vk))
+                        var parsedTrigger = InputFlowTriggerParser.Parse(trigger.Keys);
+                        if (!parsedTrigger.Success)
                         {
                             _logger.Warning($"Workflow '{GetWorkflowDisplayName(workflow)}' has invalid trigger '{trigger.Keys}'. Skipping.");
                             continue;
                         }
 
+                        uint mods = parsedTrigger.Modifiers;
+                        int vk = parsedTrigger.VirtualKey;
                         int id = _nextHotkeyId++;
-                        if (IsSingleKeyHookTrigger(mods, vk))
+                        if (parsedTrigger.IsSingleKeyTrigger)
                         {
                             if (!_singleKeyHook.Register(vk, id, trigger.Keys))
                             {
@@ -890,97 +893,6 @@ namespace InputFlow.App
                 }
             }
         }
-
-        private static bool TryParseHotkey(string hotkey, out uint modifiers, out int vk)
-        {
-            modifiers = 0;
-            vk = 0;
-            if (string.IsNullOrWhiteSpace(hotkey)) return false;
-            string[] parts = hotkey.Split('+', StringSplitOptions.RemoveEmptyEntries);
-            foreach (string part in parts)
-            {
-                string token = part.Trim();
-                switch (token.ToUpperInvariant())
-                {
-                    case "CTRL": modifiers |= MOD_CONTROL; break;
-                    case "ALT": modifiers |= MOD_ALT; break;
-                    case "SHIFT": modifiers |= MOD_SHIFT; break;
-                    case "WIN": modifiers |= MOD_WIN; break;
-                    default:
-                        if (TryParseVirtualKey(token, out int parsedVk))
-                        {
-                            vk = parsedVk;
-                        }
-                        else
-                        {
-                            return false;
-                        }
-                        break;
-                }
-            }
-            return vk != 0;
-        }
-
-        private static bool TryParseVirtualKey(string token, out int vk)
-        {
-            switch (token.Replace(" ", string.Empty).Replace("-", string.Empty).ToUpperInvariant())
-            {
-                case "RIGHTALT":
-                case "RALT":
-                case "ALTGR":
-                    vk = (int)Keys.RMenu;
-                    return true;
-                case "LEFTALT":
-                case "LALT":
-                    vk = (int)Keys.LMenu;
-                    return true;
-                case "RIGHTCTRL":
-                case "RCTRL":
-                    vk = (int)Keys.RControlKey;
-                    return true;
-                case "LEFTCTRL":
-                case "LCTRL":
-                    vk = (int)Keys.LControlKey;
-                    return true;
-                case "RIGHTSHIFT":
-                case "RSHIFT":
-                    vk = (int)Keys.RShiftKey;
-                    return true;
-                case "LEFTSHIFT":
-                case "LSHIFT":
-                    vk = (int)Keys.LShiftKey;
-                    return true;
-            }
-
-            if (Enum.TryParse(typeof(Keys), token, true, out var keyObj))
-            {
-                vk = (int)keyObj;
-                return true;
-            }
-
-            vk = 0;
-            return false;
-        }
-
-        private static bool IsSingleKeyHookTrigger(uint modifiers, int vk)
-        {
-            if (modifiers != 0)
-            {
-                return false;
-            }
-
-            return vk == (int)Keys.RMenu ||
-                vk == (int)Keys.LMenu ||
-                vk == (int)Keys.RControlKey ||
-                vk == (int)Keys.LControlKey ||
-                vk == (int)Keys.RShiftKey ||
-                vk == (int)Keys.LShiftKey;
-        }
-
-        private const uint MOD_ALT = 0x0001;
-        private const uint MOD_CONTROL = 0x0002;
-        private const uint MOD_SHIFT = 0x0004;
-        private const uint MOD_WIN = 0x0008;
 
         [DllImport("user32.dll")]
         private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, int vk);

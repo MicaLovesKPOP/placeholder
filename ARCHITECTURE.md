@@ -69,6 +69,7 @@ InputFlow.Core/InputFlowManager.cs
 InputFlow.Core/InputProfile.cs
 InputFlow.Core/InputProfileManager.cs
 InputFlow.Core/InputFlowSetupModel.cs
+InputFlow.Core/InputFlowTriggerParser.cs
 ```
 
 ## InputFlow.Windows
