@@ -14,7 +14,7 @@ InputFlow is intended to support workflows such as:
 
 ## Status
 
-InputFlow is currently a working technical preview.
+InputFlow is currently a working multilingual preview.
 
 The validated seed workflow is:
 
@@ -22,7 +22,7 @@ The validated seed workflow is:
 - switch from Korean back to Dutch (Netherlands) / United States-International
 - set Korean Microsoft IME to Hangul/native mode without blindly toggling the Hangul key
 
-The `v0.1.x` line is a technical preview for that seed workflow and nearby manual-JSON configurations. The next product goal is a first multilingual preview that is useful beyond one seeded setup: first-run setup, installed-profile picking, settings UI, and workflow configuration for regular layouts and IMEs.
+The `v0.1.x` line is a technical preview for that seed workflow and nearby manual-JSON configurations. The `v0.2.x` line adds first-run setup, installed-profile picking, workflow configuration, previous-profile workflows, process exclusions, startup registration, and setup recovery while keeping manual JSON viable for power users.
 
 See [RELEASE_PLAN.md](RELEASE_PLAN.md) for staged release gates and [ROADMAP.md](ROADMAP.md) for the broader product roadmap.
 
@@ -260,10 +260,10 @@ samples               Example configuration files
 
 ## Known Limitations
 
-- There is no settings window yet.
-- First-run setup is not implemented yet.
-- There is no installer or auto-update flow yet.
+- Setup is available through the tray `Setup Status` window, but there is no full standalone settings app yet.
+- There is no installer or auto-update flow yet; releases are portable ZIP builds.
 - Hold-to-switch workflow mode is not implemented yet.
+- Profile groups and per-app remembered profile behavior are not implemented yet.
 - IME mode automation is only intentionally supported for Korean Hangul/native mode so far.
 - Browser address bars and other application-owned chrome fields may not refresh IME composition state even when Windows reports the requested profile and mode are active.
 - Some Windows language/input setups may require more exact TSF profile matching.

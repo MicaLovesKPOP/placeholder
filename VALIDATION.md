@@ -124,7 +124,29 @@ Press the configured trigger from the fallback side
 Expected after switching to Korean: Hangul/native mode enabled without blind toggle behavior
 ```
 
-For v2 workflow changes, also test a direct `switchTo` workflow and a `cycle` workflow when the relevant installed Windows profiles are available.
+For v2 workflow changes, also test direct `switchTo`, `cycle`, and `previous` workflows when the relevant installed Windows profiles are available.
+
+## v0.2 Setup Status Validation
+
+Use the published app unless the change only affects documentation.
+
+1. Start from a clean config path by temporarily moving `%APPDATA%\InputFlow\inputflow.json` aside.
+2. Start `InputFlow.exe`.
+3. Confirm `Setup Status` opens automatically.
+4. Confirm configured profiles were generated from the installed Windows input profiles.
+5. Add or edit a profile through `Setup Status` and save.
+6. Add one toggle workflow, one direct-switch workflow, one cycle workflow with at least three targets when available, and one previous-profile workflow.
+7. Confirm invalid triggers are rejected before saving.
+8. Confirm single-key triggers show the suppression warning before saving.
+9. Add an excluded process such as `notepad.exe`, confirm it appears in Setup Status, then remove it.
+10. Use `Reset Setup`, confirm a timestamped `.bak` config is created, and confirm Setup Status reopens with a fresh starter config.
+11. Use keyboard-only operation for the setup dialogs:
+    - Tab moves through fields.
+    - Enter saves dialogs.
+    - Escape cancels dialogs or closes Setup Status.
+    - Enter edits selected profiles/workflows in Setup Status.
+    - Delete removes selected profiles/workflows/exclusions after confirmation.
+12. Use `Copy Diagnostics` and confirm profile health, setup profile options, workflow readiness, and excluded processes are represented in the report.
 
 ## Diagnostics Copy Test
 
@@ -253,8 +275,9 @@ After any change touching input switching, profile matching, hotkeys, workflows,
 5. Test in Notepad:
    - English Netherlands -> Korean + Hangul/native
    - Korean -> English Netherlands
-6. Use Copy Diagnostics from the tray menu and inspect the copied report.
-7. Inspect `%LOCALAPPDATA%\InputFlow\inputflow.log`.
+6. Test any changed workflow mode in Setup Status and in a normal text field.
+7. Use Copy Diagnostics from the tray menu and inspect the copied report.
+8. Inspect `%LOCALAPPDATA%\InputFlow\inputflow.log`.
 
 ## Validation Limitations
 
