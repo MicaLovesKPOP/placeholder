@@ -14,6 +14,8 @@ var tests = new (string Name, Action Test)[]
     ("ProfilesRequireMatchCriteria", ProfilesRequireMatchCriteria),
     ("MalformedJsonReturnsLoadErrors", MalformedJsonReturnsLoadErrors),
     ("LegacyLoadFallsBackToDefaultsOnInvalidConfig", LegacyLoadFallsBackToDefaultsOnInvalidConfig),
+    ("SaveValidatedWritesValidConfig", SaveValidatedWritesValidConfig),
+    ("SaveValidatedRejectsInvalidConfigWithoutOverwrite", SaveValidatedRejectsInvalidConfigWithoutOverwrite),
     ("NullCollectionsAreNormalized", NullCollectionsAreNormalized),
     ("UnsupportedWorkflowModeIsRejected", UnsupportedWorkflowModeIsRejected),
     ("ProfileMatchReportsExplainCompatibilityFallback", ProfileMatchReportsExplainCompatibilityFallback),
@@ -186,6 +188,49 @@ static void LegacyLoadFallsBackToDefaultsOnInvalidConfig()
 
         AssertEqual(InputFlowConfig.CurrentVersion, config.Version, "Legacy Load should return defaults after invalid config.");
         AssertEqual(0, config.Workflows.Count, "Default config should not use invalid workflows.");
+    }
+    finally
+    {
+        File.Delete(path);
+    }
+}
+
+static void SaveValidatedWritesValidConfig()
+{
+    string path = Path.Combine(Path.GetTempPath(), $"inputflow-save-test-{Guid.NewGuid():N}", "inputflow.json");
+    try
+    {
+        var config = CreateKnownWorkingWorkflowConfig();
+
+        var saveResult = InputFlowConfigWriter.SaveValidated(config, path);
+        var loadResult = InputFlowConfig.LoadDetailed(path);
+
+        AssertTrue(saveResult.Success, string.Join(Environment.NewLine, saveResult.Errors));
+        AssertTrue(loadResult.Success, string.Join(Environment.NewLine, loadResult.Errors));
+        AssertEqual("korean-toggle", loadResult.Config.Workflows.Single().Id, "Saved workflow should round-trip.");
+    }
+    finally
+    {
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
+    }
+}
+
+static void SaveValidatedRejectsInvalidConfigWithoutOverwrite()
+{
+    string path = WriteTempConfig("{ \"sentinel\": true }");
+    try
+    {
+        var config = CreateKnownWorkingWorkflowConfig();
+        config.Workflows[0].Fallback = "missing";
+
+        var saveResult = InputFlowConfigWriter.SaveValidated(config, path);
+
+        AssertFalse(saveResult.Success, "Invalid config should not be saved.");
+        AssertContains(saveResult.Errors, "Fallback references unknown profile 'missing'");
+        AssertContains(new[] { File.ReadAllText(path) }, "\"sentinel\": true");
     }
     finally
     {

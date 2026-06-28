@@ -64,6 +64,7 @@ Known important files:
 InputFlow.Core/ConfigModels.cs
 InputFlow.Core/FileLogger.cs
 InputFlow.Core/ILogger.cs
+InputFlow.Core/InputFlowConfigWriter.cs
 InputFlow.Core/InputFlowManager.cs
 InputFlow.Core/InputProfile.cs
 InputFlow.Core/InputProfileManager.cs
