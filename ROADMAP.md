@@ -62,6 +62,7 @@ Already achieved:
 21. Setup Status can add configured profiles and remap existing profile IDs to installed Windows input profiles.
 22. Fresh installs open Setup Status after generating the inventory-backed starter config.
 23. Setup Status can remove unused configured profiles and blocks removal when workflows still reference them.
+24. Tray menu can enable or disable Start with Windows for the current user.
 
 Still missing for a finished product:
 

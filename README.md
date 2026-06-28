@@ -97,6 +97,7 @@ The tray menu includes:
 - Setup Status
 - Copy Diagnostics
 - Reload Config
+- Start with Windows
 - Pause/Resume
 - Exit
 

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using Microsoft.Win32;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading;
@@ -88,6 +89,8 @@ namespace InputFlow.App
         private sealed class TrayApplicationContext : ApplicationContext
         {
             private const int ConfigReloadDebounceMilliseconds = 500;
+            private const string StartupRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+            private const string StartupRegistryValueName = "InputFlow";
 
             private readonly string _configPath;
             private readonly string _logPath;
@@ -106,6 +109,7 @@ namespace InputFlow.App
             private int _nextHotkeyId = 1;
             private FileSystemWatcher? _configWatcher;
             private ToolStripMenuItem? _pauseMenuItem;
+            private ToolStripMenuItem? _startWithWindowsMenuItem;
             private SetupStatusForm? _setupStatusForm;
 
             public TrayApplicationContext(string configPath, string logPath, string? migratedLegacyConfigPath, bool createdFirstRunConfig)
@@ -168,10 +172,13 @@ namespace InputFlow.App
                 menu.Items.Add(new ToolStripMenuItem("Copy Diagnostics", null, (_, _) => CopyDiagnostics()));
                 menu.Items.Add(new ToolStripSeparator());
                 menu.Items.Add(new ToolStripMenuItem("Reload Config", null, (_, _) => ReloadConfig("tray menu")));
+                _startWithWindowsMenuItem = new ToolStripMenuItem("Start with Windows", null, (_, _) => ToggleStartWithWindows());
+                menu.Items.Add(_startWithWindowsMenuItem);
                 _pauseMenuItem = new ToolStripMenuItem("Pause", null, (_, _) => TogglePause());
                 menu.Items.Add(_pauseMenuItem);
                 menu.Items.Add(new ToolStripSeparator());
                 menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) => ExitThread()));
+                UpdateStartWithWindowsMenuText();
                 UpdatePauseMenuText();
                 return menu;
             }
@@ -586,6 +593,72 @@ namespace InputFlow.App
                 _manager.SetPaused(newState);
                 UpdatePauseMenuText();
                 _logger.Info(newState ? "Paused via tray." : "Resumed via tray.");
+            }
+
+            private void ToggleStartWithWindows()
+            {
+                try
+                {
+                    bool enable = !IsStartWithWindowsEnabled();
+                    using var key = Registry.CurrentUser.OpenSubKey(StartupRegistryPath, writable: true)
+                        ?? Registry.CurrentUser.CreateSubKey(StartupRegistryPath, writable: true);
+                    if (key == null)
+                    {
+                        _logger.Warning("Cannot update Start with Windows: registry key could not be opened.");
+                        return;
+                    }
+
+                    if (enable)
+                    {
+                        key.SetValue(StartupRegistryValueName, GetStartupCommand(), RegistryValueKind.String);
+                    }
+                    else
+                    {
+                        key.DeleteValue(StartupRegistryValueName, throwOnMissingValue: false);
+                    }
+
+                    UpdateStartWithWindowsMenuText();
+                    _logger.Info(enable ? "Enabled Start with Windows via tray." : "Disabled Start with Windows via tray.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warning($"Cannot update Start with Windows: {ex.Message}");
+                    MessageBox.Show(
+                        _setupStatusForm,
+                        ex.Message,
+                        "InputFlow could not update Start with Windows",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+            }
+
+            private void UpdateStartWithWindowsMenuText()
+            {
+                if (_startWithWindowsMenuItem == null)
+                {
+                    return;
+                }
+
+                try
+                {
+                    _startWithWindowsMenuItem.Checked = IsStartWithWindowsEnabled();
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warning($"Cannot read Start with Windows state: {ex.Message}");
+                    _startWithWindowsMenuItem.Checked = false;
+                }
+            }
+
+            private static bool IsStartWithWindowsEnabled()
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(StartupRegistryPath, writable: false);
+                return key?.GetValue(StartupRegistryValueName) is string value && !string.IsNullOrWhiteSpace(value);
+            }
+
+            private static string GetStartupCommand()
+            {
+                return $"\"{Application.ExecutablePath}\"";
             }
 
             private void UpdatePauseMenuText()
