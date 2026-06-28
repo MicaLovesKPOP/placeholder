@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Threading;
 using System.Windows.Forms;
 using InputFlow.Core;
@@ -199,7 +200,8 @@ namespace InputFlow.App
                     {
                         _setupStatusForm = new SetupStatusForm(
                             CopyDiagnostics,
-                            () => OpenPath(_configPath, "config file"));
+                            () => OpenPath(_configPath, "config file"),
+                            OpenAddToggleWorkflow);
                         _setupStatusForm.FormClosed += (_, _) => _setupStatusForm = null;
                     }
 
@@ -211,6 +213,62 @@ namespace InputFlow.App
                 {
                     _logger.Warning($"Cannot open setup status window: {ex.Message}");
                 }
+            }
+
+            private void OpenAddToggleWorkflow()
+            {
+                var setup = InputFlowSetupModelBuilder.Build(_config, _installedProfiles);
+                if (!setup.ConfiguredProfiles.Any(profile => profile.CanUseForSwitching))
+                {
+                    MessageBox.Show(
+                        _setupStatusForm,
+                        "No matched configured profiles are available for switching.",
+                        "InputFlow",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
+                using var dialog = new ToggleWorkflowDialog(setup.ConfiguredProfiles);
+                if (dialog.ShowDialog(_setupStatusForm) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                SaveToggleWorkflow(dialog.Draft);
+            }
+
+            private void SaveToggleWorkflow(ToggleWorkflowDraft draft)
+            {
+                var updated = CloneConfig(_config);
+                updated.Workflows.Add(new WorkflowConfig
+                {
+                    Id = CreateUniqueWorkflowId(draft.Name, updated.Workflows),
+                    Name = draft.Name,
+                    Mode = "toggle",
+                    Triggers = new List<TriggerConfig> { new TriggerConfig { Keys = draft.Trigger } },
+                    Target = draft.TargetProfileId,
+                    ReturnBehavior = draft.ReturnBehavior,
+                    Fallback = draft.FallbackProfileId
+                });
+
+                var saveResult = InputFlowConfigWriter.SaveValidated(updated, _configPath);
+                if (!saveResult.Success)
+                {
+                    string message = string.Join(Environment.NewLine, saveResult.Errors);
+                    _logger.Warning($"Setup workflow save failed: {message}");
+                    MessageBox.Show(
+                        _setupStatusForm,
+                        message,
+                        "InputFlow could not save the workflow",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
+                _logger.Info($"Saved setup workflow '{draft.Name}'.");
+                ReloadConfig("setup status window");
+                RefreshSetupStatusWindow();
             }
 
             private void CopyDiagnostics()
@@ -295,6 +353,52 @@ namespace InputFlow.App
                 {
                     _logger.Error($"Config load error ({reason}): {error}");
                 }
+            }
+
+            private static InputFlowConfig CloneConfig(InputFlowConfig config)
+            {
+                string json = JsonSerializer.Serialize(config);
+                return JsonSerializer.Deserialize<InputFlowConfig>(json) ?? new InputFlowConfig();
+            }
+
+            private static string CreateUniqueWorkflowId(string name, IReadOnlyList<WorkflowConfig> existing)
+            {
+                string baseId = Slugify(name);
+                if (string.IsNullOrWhiteSpace(baseId))
+                {
+                    baseId = "workflow";
+                }
+
+                var used = existing
+                    .Where(workflow => workflow != null && !string.IsNullOrWhiteSpace(workflow.Id))
+                    .Select(workflow => workflow.Id.Trim())
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                string id = baseId;
+                int suffix = 2;
+                while (!used.Add(id))
+                {
+                    id = $"{baseId}-{suffix}";
+                    suffix++;
+                }
+
+                return id;
+            }
+
+            private static string Slugify(string value)
+            {
+                var chars = value
+                    .Trim()
+                    .ToLowerInvariant()
+                    .Select(ch => char.IsLetterOrDigit(ch) ? ch : '-')
+                    .ToArray();
+                string slug = new string(chars).Trim('-');
+                while (slug.Contains("--", StringComparison.Ordinal))
+                {
+                    slug = slug.Replace("--", "-", StringComparison.Ordinal);
+                }
+
+                return slug;
             }
 
             private void SetupConfigWatcher()

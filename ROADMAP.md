@@ -57,6 +57,7 @@ Already achieved:
 16. Core setup model exposes installed profile options, configured profile health, and workflow readiness for future first-run/settings UI.
 17. Copy Diagnostics surfaces workflow readiness and blocking reasons, so setup issues are visible before a full settings UI exists.
 18. Tray Setup Status window shows configured profile health, installed profile options, and workflow readiness without requiring JSON inspection.
+19. Setup Status can add a basic toggle workflow through validated config saving.
 
 Still missing for a finished product:
 
