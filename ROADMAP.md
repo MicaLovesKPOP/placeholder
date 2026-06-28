@@ -55,6 +55,7 @@ Already achieved:
 14. Fresh installs generate an inventory-backed starter config from installed Windows input profiles instead of assuming the original Dutch/Korean setup.
 15. Profile matching reports explicit health states: matched, missing, ambiguous, and changed; ambiguous profiles are not used for runtime switching.
 16. Core setup model exposes installed profile options, configured profile health, and workflow readiness for future first-run/settings UI.
+17. Copy Diagnostics surfaces workflow readiness and blocking reasons, so setup issues are visible before a full settings UI exists.
 
 Still missing for a finished product:
 
