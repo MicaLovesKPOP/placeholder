@@ -173,6 +173,7 @@ namespace InputFlow.App
                 menu.Items.Add(new ToolStripMenuItem("Copy Diagnostics", null, (_, _) => CopyDiagnostics()));
                 menu.Items.Add(new ToolStripSeparator());
                 menu.Items.Add(new ToolStripMenuItem("Reload Config", null, (_, _) => ReloadConfig("tray menu")));
+                menu.Items.Add(new ToolStripMenuItem("Restore Last Good Config", null, (_, _) => RestoreLastGoodConfig()));
                 menu.Items.Add(new ToolStripMenuItem("Reset Setup", null, (_, _) => ResetSetupConfig()));
                 _startWithWindowsMenuItem = new ToolStripMenuItem("Start with Windows", null, (_, _) => ToggleStartWithWindows());
                 menu.Items.Add(_startWithWindowsMenuItem);
@@ -255,6 +256,58 @@ namespace InputFlow.App
                         _setupStatusForm,
                         ex.Message,
                         "InputFlow could not reset setup",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+            }
+
+            private void RestoreLastGoodConfig()
+            {
+                string lastKnownGoodPath = InputFlowConfigWriter.GetLastKnownGoodPath(_configPath);
+                if (!File.Exists(lastKnownGoodPath))
+                {
+                    MessageBox.Show(
+                        _setupStatusForm,
+                        "No last-known-good config has been saved yet.",
+                        "InputFlow",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    return;
+                }
+
+                string backupPath = CreateConfigBackupPath();
+                var result = MessageBox.Show(
+                    _setupStatusForm,
+                    $"Restore the last-known-good InputFlow config?{Environment.NewLine}{Environment.NewLine}Your current config will be backed up to:{Environment.NewLine}{backupPath}",
+                    "InputFlow restore config",
+                    MessageBoxButtons.OKCancel,
+                    MessageBoxIcon.Warning);
+                if (result != DialogResult.OK)
+                {
+                    return;
+                }
+
+                try
+                {
+                    if (File.Exists(_configPath))
+                    {
+                        File.Copy(_configPath, backupPath, overwrite: false);
+                    }
+
+                    File.Copy(lastKnownGoodPath, _configPath, overwrite: true);
+                    _logger.Info(File.Exists(backupPath)
+                        ? $"Restored last-known-good config from {lastKnownGoodPath}. Backup saved to {backupPath}."
+                        : $"Restored last-known-good config from {lastKnownGoodPath}. No existing config was present to back up.");
+                    ReloadConfig("last-known-good restore");
+                    OpenSetupStatus();
+                }
+                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                {
+                    _logger.Warning($"Last-known-good restore failed: {ex.Message}");
+                    MessageBox.Show(
+                        _setupStatusForm,
+                        ex.Message,
+                        "InputFlow could not restore the config",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
                 }
