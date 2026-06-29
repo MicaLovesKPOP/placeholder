@@ -38,6 +38,9 @@ namespace InputFlow.Core
 
         public static InputFlowConfigSaveResult SaveValidated(InputFlowConfig config, string path)
         {
+            string? tempPath = null;
+            string? lastKnownGoodTempPath = null;
+
             if (config == null)
             {
                 return InputFlowConfigSaveResult.Failed("Config must not be null.");
@@ -63,22 +66,59 @@ namespace InputFlow.Core
                 }
 
                 string json = JsonSerializer.Serialize(config, CreateJsonOptions());
-                string tempPath = $"{path}.tmp";
+                tempPath = CreateTempPath(path);
+                lastKnownGoodTempPath = CreateTempPath(GetLastKnownGoodPath(path));
                 File.WriteAllText(tempPath, json);
-                File.Copy(tempPath, path, overwrite: true);
-                File.Copy(tempPath, GetLastKnownGoodPath(path), overwrite: true);
-                File.Delete(tempPath);
+                File.WriteAllText(lastKnownGoodTempPath, json);
+                MoveReplacing(tempPath, path);
+                MoveReplacing(lastKnownGoodTempPath, GetLastKnownGoodPath(path));
                 return InputFlowConfigSaveResult.Saved();
             }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is JsonException)
             {
                 return InputFlowConfigSaveResult.Failed($"Could not save config: {ex.Message}");
             }
+            finally
+            {
+                DeleteIfExists(tempPath);
+                DeleteIfExists(lastKnownGoodTempPath);
+            }
         }
 
         public static string GetLastKnownGoodPath(string path)
         {
             return $"{path}{LastKnownGoodSuffix}";
+        }
+
+        private static string CreateTempPath(string path)
+        {
+            string directory = Path.GetDirectoryName(path) ?? string.Empty;
+            string fileName = Path.GetFileName(path);
+            return Path.Combine(directory, $".{fileName}.{Guid.NewGuid():N}.tmp");
+        }
+
+        private static void MoveReplacing(string sourcePath, string destinationPath)
+        {
+            File.Move(sourcePath, destinationPath, overwrite: true);
+        }
+
+        private static void DeleteIfExists(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                return;
+            }
+
+            try
+            {
+                File.Delete(path);
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
         }
 
         private static JsonSerializerOptions CreateJsonOptions()

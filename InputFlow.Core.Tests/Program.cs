@@ -20,6 +20,7 @@ var tests = new (string Name, Action Test)[]
     ("SaveValidatedWritesValidConfig", SaveValidatedWritesValidConfig),
     ("SaveValidatedRejectsInvalidConfigWithoutOverwrite", SaveValidatedRejectsInvalidConfigWithoutOverwrite),
     ("SaveValidatedWritesLastKnownGoodConfig", SaveValidatedWritesLastKnownGoodConfig),
+    ("SaveValidatedDoesNotLeaveTempFiles", SaveValidatedDoesNotLeaveTempFiles),
     ("LoadDetailedFallsBackToLastKnownGoodConfig", LoadDetailedFallsBackToLastKnownGoodConfig),
     ("NullCollectionsAreNormalized", NullCollectionsAreNormalized),
     ("UnsupportedWorkflowModeIsRejected", UnsupportedWorkflowModeIsRejected),
@@ -298,6 +299,23 @@ static void SaveValidatedWritesLastKnownGoodConfig()
         AssertTrue(saveResult.Success, string.Join(Environment.NewLine, saveResult.Errors));
         AssertTrue(File.Exists(lastKnownGoodPath), "Successful validated saves should refresh the last-known-good config.");
         AssertContains(new[] { File.ReadAllText(lastKnownGoodPath) }, "\"korean-toggle\"");
+    }
+    finally
+    {
+        DeleteParentDirectory(path);
+    }
+}
+
+static void SaveValidatedDoesNotLeaveTempFiles()
+{
+    string path = Path.Combine(Path.GetTempPath(), $"inputflow-save-test-{Guid.NewGuid():N}", "inputflow.json");
+    try
+    {
+        var saveResult = InputFlowConfigWriter.SaveValidated(CreateKnownWorkingWorkflowConfig(), path);
+        string directory = Path.GetDirectoryName(path) ?? string.Empty;
+
+        AssertTrue(saveResult.Success, string.Join(Environment.NewLine, saveResult.Errors));
+        AssertEqual(0, Directory.GetFiles(directory, "*.tmp").Length, "Validated saves should clean temporary files.");
     }
     finally
     {
