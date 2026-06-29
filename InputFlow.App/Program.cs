@@ -152,6 +152,7 @@ namespace InputFlow.App
                 _notifyIcon.ContextMenuStrip = BuildContextMenu();
 
                 LogStartupDiagnostics();
+                LogConfigLoadWarnings("startup", initialLoad);
                 if (!initialLoad.Success)
                 {
                     LogConfigLoadErrors("startup", initialLoad);
@@ -836,6 +837,7 @@ namespace InputFlow.App
                 {
                     _logger.Info($"Reloading configuration ({reason})...");
                     var loadResult = InputFlowConfig.LoadDetailed(_configPath);
+                    LogConfigLoadWarnings(reason, loadResult);
                     if (!loadResult.Success)
                     {
                         LogConfigLoadErrors(reason, loadResult);
@@ -882,6 +884,14 @@ namespace InputFlow.App
                 foreach (string error in loadResult.Errors)
                 {
                     _logger.Error($"Config load error ({reason}): {error}");
+                }
+            }
+
+            private void LogConfigLoadWarnings(string reason, InputFlowConfigLoadResult loadResult)
+            {
+                foreach (string warning in loadResult.Warnings)
+                {
+                    _logger.Warning($"Config load warning ({reason}): {warning}");
                 }
             }
 

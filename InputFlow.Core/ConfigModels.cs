@@ -95,6 +95,33 @@ namespace InputFlow.Core
                 return InputFlowConfigLoadResult.Valid(new InputFlowConfig());
             }
 
+            var primary = TryLoadAndValidate(path);
+            if (primary.Success)
+            {
+                return primary;
+            }
+
+            string lastKnownGoodPath = InputFlowConfigWriter.GetLastKnownGoodPath(path);
+            if (File.Exists(lastKnownGoodPath))
+            {
+                var fallback = TryLoadAndValidate(lastKnownGoodPath);
+                if (fallback.Success)
+                {
+                    return InputFlowConfigLoadResult.Valid(
+                        fallback.Config,
+                        primary.Errors.Concat(new[] { $"Loaded last-known-good config from {lastKnownGoodPath}." }).ToList());
+                }
+
+                return InputFlowConfigLoadResult.Invalid(
+                    new InputFlowConfig(),
+                    primary.Errors.Concat(fallback.Errors.Select(error => $"Last-known-good config failed: {error}")).ToList());
+            }
+
+            return primary;
+        }
+
+        private static InputFlowConfigLoadResult TryLoadAndValidate(string path)
+        {
             InputFlowConfig? config;
             try
             {
@@ -103,12 +130,12 @@ namespace InputFlow.Core
             }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is JsonException)
             {
-                return InputFlowConfigLoadResult.Invalid(new InputFlowConfig(), $"Could not read or parse config: {ex.Message}");
+                return InputFlowConfigLoadResult.Invalid(new InputFlowConfig(), $"Could not read or parse config '{path}': {ex.Message}");
             }
 
             if (config == null)
             {
-                return InputFlowConfigLoadResult.Invalid(new InputFlowConfig(), "Config file did not contain a valid JSON object.");
+                return InputFlowConfigLoadResult.Invalid(new InputFlowConfig(), $"Config file '{path}' did not contain a valid JSON object.");
             }
 
             NormalizeAndMigrate(config);
@@ -116,7 +143,7 @@ namespace InputFlow.Core
             var errors = InputFlowConfigValidator.Validate(config);
             return errors.Count == 0
                 ? InputFlowConfigLoadResult.Valid(config)
-                : InputFlowConfigLoadResult.Invalid(config, errors);
+                : InputFlowConfigLoadResult.Invalid(config, errors.Select(error => $"{path}: {error}").ToList());
         }
 
         private static void NormalizeAndMigrate(InputFlowConfig config)
@@ -166,30 +193,32 @@ namespace InputFlow.Core
     /// </summary>
     public sealed class InputFlowConfigLoadResult
     {
-        private InputFlowConfigLoadResult(InputFlowConfig config, bool success, IReadOnlyList<string> errors)
+        private InputFlowConfigLoadResult(InputFlowConfig config, bool success, IReadOnlyList<string> errors, IReadOnlyList<string> warnings)
         {
             Config = config;
             Success = success;
             Errors = errors;
+            Warnings = warnings;
         }
 
         public InputFlowConfig Config { get; }
         public bool Success { get; }
         public IReadOnlyList<string> Errors { get; }
+        public IReadOnlyList<string> Warnings { get; }
 
-        public static InputFlowConfigLoadResult Valid(InputFlowConfig config)
+        public static InputFlowConfigLoadResult Valid(InputFlowConfig config, IReadOnlyList<string>? warnings = null)
         {
-            return new InputFlowConfigLoadResult(config, true, Array.Empty<string>());
+            return new InputFlowConfigLoadResult(config, true, Array.Empty<string>(), warnings ?? Array.Empty<string>());
         }
 
         public static InputFlowConfigLoadResult Invalid(InputFlowConfig config, string error)
         {
-            return new InputFlowConfigLoadResult(config, false, new[] { error });
+            return new InputFlowConfigLoadResult(config, false, new[] { error }, Array.Empty<string>());
         }
 
         public static InputFlowConfigLoadResult Invalid(InputFlowConfig config, IReadOnlyList<string> errors)
         {
-            return new InputFlowConfigLoadResult(config, false, errors.Count == 0 ? new[] { "Config validation failed." } : errors);
+            return new InputFlowConfigLoadResult(config, false, errors.Count == 0 ? new[] { "Config validation failed." } : errors, Array.Empty<string>());
         }
     }
 

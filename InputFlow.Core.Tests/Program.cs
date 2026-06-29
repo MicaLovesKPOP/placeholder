@@ -19,6 +19,8 @@ var tests = new (string Name, Action Test)[]
     ("LegacyLoadFallsBackToDefaultsOnInvalidConfig", LegacyLoadFallsBackToDefaultsOnInvalidConfig),
     ("SaveValidatedWritesValidConfig", SaveValidatedWritesValidConfig),
     ("SaveValidatedRejectsInvalidConfigWithoutOverwrite", SaveValidatedRejectsInvalidConfigWithoutOverwrite),
+    ("SaveValidatedWritesLastKnownGoodConfig", SaveValidatedWritesLastKnownGoodConfig),
+    ("LoadDetailedFallsBackToLastKnownGoodConfig", LoadDetailedFallsBackToLastKnownGoodConfig),
     ("NullCollectionsAreNormalized", NullCollectionsAreNormalized),
     ("UnsupportedWorkflowModeIsRejected", UnsupportedWorkflowModeIsRejected),
     ("ProfileMatchReportsExplainCompatibilityFallback", ProfileMatchReportsExplainCompatibilityFallback),
@@ -282,6 +284,45 @@ static void SaveValidatedRejectsInvalidConfigWithoutOverwrite()
     finally
     {
         File.Delete(path);
+    }
+}
+
+static void SaveValidatedWritesLastKnownGoodConfig()
+{
+    string path = Path.Combine(Path.GetTempPath(), $"inputflow-save-test-{Guid.NewGuid():N}", "inputflow.json");
+    try
+    {
+        var saveResult = InputFlowConfigWriter.SaveValidated(CreateKnownWorkingWorkflowConfig(), path);
+        string lastKnownGoodPath = InputFlowConfigWriter.GetLastKnownGoodPath(path);
+
+        AssertTrue(saveResult.Success, string.Join(Environment.NewLine, saveResult.Errors));
+        AssertTrue(File.Exists(lastKnownGoodPath), "Successful validated saves should refresh the last-known-good config.");
+        AssertContains(new[] { File.ReadAllText(lastKnownGoodPath) }, "\"korean-toggle\"");
+    }
+    finally
+    {
+        DeleteParentDirectory(path);
+    }
+}
+
+static void LoadDetailedFallsBackToLastKnownGoodConfig()
+{
+    string path = Path.Combine(Path.GetTempPath(), $"inputflow-load-test-{Guid.NewGuid():N}", "inputflow.json");
+    try
+    {
+        var saveResult = InputFlowConfigWriter.SaveValidated(CreateKnownWorkingWorkflowConfig(), path);
+        File.WriteAllText(path, "{ not json }");
+
+        var loadResult = InputFlowConfig.LoadDetailed(path);
+
+        AssertTrue(saveResult.Success, string.Join(Environment.NewLine, saveResult.Errors));
+        AssertTrue(loadResult.Success, string.Join(Environment.NewLine, loadResult.Errors));
+        AssertEqual("korean-toggle", loadResult.Config.Workflows.Single().Id, "Invalid primary config should recover from last-known-good.");
+        AssertContains(loadResult.Warnings, "Loaded last-known-good config");
+    }
+    finally
+    {
+        DeleteParentDirectory(path);
     }
 }
 
@@ -614,6 +655,15 @@ static string WriteTempConfig(string content)
     string path = Path.Combine(Path.GetTempPath(), $"inputflow-test-{Guid.NewGuid():N}.json");
     File.WriteAllText(path, content);
     return path;
+}
+
+static void DeleteParentDirectory(string path)
+{
+    string? directory = Path.GetDirectoryName(path);
+    if (!string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory))
+    {
+        Directory.Delete(directory, recursive: true);
+    }
 }
 
 static void AssertEqual<T>(T expected, T actual, string message)

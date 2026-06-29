@@ -34,6 +34,8 @@ namespace InputFlow.Core
 
     public static class InputFlowConfigWriter
     {
+        private const string LastKnownGoodSuffix = ".last-good";
+
         public static InputFlowConfigSaveResult SaveValidated(InputFlowConfig config, string path)
         {
             if (config == null)
@@ -60,13 +62,23 @@ namespace InputFlow.Core
                     Directory.CreateDirectory(directory);
                 }
 
-                File.WriteAllText(path, JsonSerializer.Serialize(config, CreateJsonOptions()));
+                string json = JsonSerializer.Serialize(config, CreateJsonOptions());
+                string tempPath = $"{path}.tmp";
+                File.WriteAllText(tempPath, json);
+                File.Copy(tempPath, path, overwrite: true);
+                File.Copy(tempPath, GetLastKnownGoodPath(path), overwrite: true);
+                File.Delete(tempPath);
                 return InputFlowConfigSaveResult.Saved();
             }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is JsonException)
             {
                 return InputFlowConfigSaveResult.Failed($"Could not save config: {ex.Message}");
             }
+        }
+
+        public static string GetLastKnownGoodPath(string path)
+        {
+            return $"{path}{LastKnownGoodSuffix}";
         }
 
         private static JsonSerializerOptions CreateJsonOptions()
