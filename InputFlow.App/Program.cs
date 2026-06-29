@@ -349,7 +349,7 @@ namespace InputFlow.App
                         _setupStatusForm.FormClosed += (_, _) => _setupStatusForm = null;
                     }
 
-                    _setupStatusForm.RefreshModel(InputFlowSetupModelBuilder.Build(_config, _installedProfiles));
+                    _setupStatusForm.RefreshModel(InputFlowSetupModelBuilder.Build(_config, _installedProfiles), GetConfigRecoveryStatusText());
                     _setupStatusForm.Show();
                     _setupStatusForm.Activate();
                 }
@@ -929,7 +929,15 @@ namespace InputFlow.App
                     return;
                 }
 
-                _setupStatusForm.RefreshModel(InputFlowSetupModelBuilder.Build(_config, _installedProfiles));
+                _setupStatusForm.RefreshModel(InputFlowSetupModelBuilder.Build(_config, _installedProfiles), GetConfigRecoveryStatusText());
+            }
+
+            private string GetConfigRecoveryStatusText()
+            {
+                string lastKnownGoodPath = InputFlowConfigWriter.GetLastKnownGoodPath(_configPath);
+                return File.Exists(lastKnownGoodPath)
+                    ? $"Recovery: last-good config available at {lastKnownGoodPath}"
+                    : $"Recovery: no last-good config saved yet ({lastKnownGoodPath})";
             }
 
             private void LogConfigLoadErrors(string reason, InputFlowConfigLoadResult loadResult)

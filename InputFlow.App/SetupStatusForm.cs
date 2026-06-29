@@ -7,6 +7,7 @@ namespace InputFlow.App
 {
     internal sealed class SetupStatusForm : Form
     {
+        private readonly Label _recoveryStatusLabel;
         private readonly ListView _configuredProfilesList;
         private readonly ListView _installedProfilesList;
         private readonly ListView _workflowsList;
@@ -63,14 +64,23 @@ namespace InputFlow.App
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 5,
+                RowCount = 6,
                 Padding = new Padding(12)
             };
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 116));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 128));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+
+            _recoveryStatusLabel = new Label
+            {
+                Dock = DockStyle.Fill,
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
+                AutoEllipsis = true,
+                AccessibleName = "Config recovery status"
+            };
 
             _configuredProfilesList = CreateListView("Profile ID", "Health", "Matched profile", "Enter mode", "Summary");
             _configuredProfilesList.AccessibleName = "Configured profiles";
@@ -94,17 +104,19 @@ namespace InputFlow.App
             _excludedProcessesList.DoubleClick += (_, _) => RemoveSelectedExcludedProcess();
             _excludedProcessesList.KeyDown += (_, e) => HandleExcludedProcessKeyDown(e);
 
-            root.Controls.Add(CreateGroup("Configured profiles", _configuredProfilesList), 0, 0);
-            root.Controls.Add(CreateGroup("Installed profile options", _installedProfilesList), 0, 1);
-            root.Controls.Add(CreateGroup("Workflow readiness", _workflowsList), 0, 2);
-            root.Controls.Add(CreateExcludedProcessesGroup(), 0, 3);
-            root.Controls.Add(CreateButtonRow(), 0, 4);
+            root.Controls.Add(_recoveryStatusLabel, 0, 0);
+            root.Controls.Add(CreateGroup("Configured profiles", _configuredProfilesList), 0, 1);
+            root.Controls.Add(CreateGroup("Installed profile options", _installedProfilesList), 0, 2);
+            root.Controls.Add(CreateGroup("Workflow readiness", _workflowsList), 0, 3);
+            root.Controls.Add(CreateExcludedProcessesGroup(), 0, 4);
+            root.Controls.Add(CreateButtonRow(), 0, 5);
 
             Controls.Add(root);
         }
 
-        public void RefreshModel(InputFlowSetupModel model)
+        public void RefreshModel(InputFlowSetupModel model, string recoveryStatus)
         {
+            _recoveryStatusLabel.Text = recoveryStatus;
             _configuredProfilesList.BeginUpdate();
             _installedProfilesList.BeginUpdate();
             _workflowsList.BeginUpdate();
