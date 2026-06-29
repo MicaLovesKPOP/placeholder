@@ -58,12 +58,14 @@ namespace InputFlow.App
             {
                 _installedProfileComboBox.Items.Add(item);
             }
-            _installedProfileComboBox.SelectedIndexChanged += (_, _) => SuggestProfileId();
+            _installedProfileComboBox.SelectedIndexChanged += (_, _) =>
+            {
+                SuggestProfileId();
+                RefreshEnterModeOptions(null);
+            };
 
             _enterModeComboBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = "Enter mode", TabIndex = 2 };
-            _enterModeComboBox.Items.Add(new EnterModeItem(null, "(none)"));
-            _enterModeComboBox.Items.Add(new EnterModeItem("hangul", "Korean Hangul"));
-            _enterModeComboBox.SelectedIndex = 0;
+            RefreshEnterModeOptions(null);
 
             _errorLabel = new Label
             {
@@ -180,6 +182,7 @@ namespace InputFlow.App
 
         private void SelectEnterMode(string? enterMode)
         {
+            RefreshEnterModeOptions(enterMode);
             for (int i = 0; i < _enterModeComboBox.Items.Count; i++)
             {
                 if (_enterModeComboBox.Items[i] is EnterModeItem item &&
@@ -189,6 +192,8 @@ namespace InputFlow.App
                     return;
                 }
             }
+
+            _enterModeComboBox.SelectedIndex = 0;
         }
 
         private void SuggestProfileId()
@@ -216,6 +221,41 @@ namespace InputFlow.App
 
             string slug = Slugify(source);
             return string.IsNullOrWhiteSpace(slug) ? $"profile-{profile.KLID.ToLowerInvariant()}" : slug;
+        }
+
+        private void RefreshEnterModeOptions(string? preferredEnterMode)
+        {
+            string? currentValue = preferredEnterMode ?? (_enterModeComboBox.SelectedItem as EnterModeItem)?.Value;
+            _enterModeComboBox.Items.Clear();
+            _enterModeComboBox.Items.Add(new EnterModeItem(null, "(none)"));
+
+            if (SelectedProfileSupportsHangulEnterMode())
+            {
+                _enterModeComboBox.Items.Add(new EnterModeItem("hangul", "Korean Hangul"));
+            }
+
+            for (int i = 0; i < _enterModeComboBox.Items.Count; i++)
+            {
+                if (_enterModeComboBox.Items[i] is EnterModeItem item &&
+                    string.Equals(item.Value ?? string.Empty, currentValue ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+                {
+                    _enterModeComboBox.SelectedIndex = i;
+                    return;
+                }
+            }
+
+            _enterModeComboBox.SelectedIndex = 0;
+        }
+
+        private bool SelectedProfileSupportsHangulEnterMode()
+        {
+            if (_installedProfileComboBox.SelectedItem is not InstalledProfileItem selected)
+            {
+                return false;
+            }
+
+            return string.Equals(selected.Profile.LanguageTag, "ko-KR", StringComparison.OrdinalIgnoreCase) ||
+                selected.Profile.KLID.EndsWith("0412", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string Slugify(string value)
