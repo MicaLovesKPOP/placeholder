@@ -64,13 +64,13 @@ namespace InputFlow.App
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
                 RowCount = 5,
-                Padding = new Padding(12, 12, 12, 16)
+                Padding = new Padding(12)
             };
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 28));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 24));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 48));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 116));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 128));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
 
             _configuredProfilesList = CreateListView("Profile ID", "Health", "Matched profile", "Enter mode", "Summary");
             _configuredProfilesList.AccessibleName = "Configured profiles";
@@ -183,7 +183,7 @@ namespace InputFlow.App
             {
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = true,
+                WrapContents = false,
                 Padding = new Padding(0, 4, 0, 0)
             };
 
