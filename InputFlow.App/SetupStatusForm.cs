@@ -64,13 +64,13 @@ namespace InputFlow.App
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
                 RowCount = 5,
-                Padding = new Padding(12)
+                Padding = new Padding(12, 12, 12, 16)
             };
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 28));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 24));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 48));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 116));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
 
             _configuredProfilesList = CreateListView("Profile ID", "Health", "Matched profile", "Enter mode", "Summary");
             _configuredProfilesList.AccessibleName = "Configured profiles";
@@ -182,46 +182,47 @@ namespace InputFlow.App
             var panel = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.RightToLeft,
-                WrapContents = false
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = true,
+                Padding = new Padding(0, 4, 0, 0)
             };
 
-            var closeButton = new Button { Text = "Close", Width = 110, Height = 30 };
+            var closeButton = new Button { Text = "Close", Width = 100, Height = 30 };
             closeButton.Click += (_, _) => Close();
 
-            var copyButton = new Button { Text = "Copy Diagnostics", Width = 140, Height = 30 };
+            var copyButton = new Button { Text = "Copy Diagnostics", Width = 130, Height = 30 };
             copyButton.Click += (_, _) => _copyDiagnostics();
 
-            var configButton = new Button { Text = "Open Config", Width = 110, Height = 30 };
+            var configButton = new Button { Text = "Open Config", Width = 100, Height = 30 };
             configButton.Click += (_, _) => _openConfig();
 
-            var addProfileButton = new Button { Text = "Add Profile", Width = 110, Height = 30 };
+            var addProfileButton = new Button { Text = "Add Profile", Width = 100, Height = 30 };
             addProfileButton.Click += (_, _) => _addProfile();
 
-            var editProfileButton = new Button { Text = "Edit Profile", Width = 110, Height = 30 };
+            var editProfileButton = new Button { Text = "Edit Profile", Width = 100, Height = 30 };
             editProfileButton.Click += (_, _) => EditSelectedProfile();
 
-            var removeProfileButton = new Button { Text = "Remove Profile", Width = 125, Height = 30 };
+            var removeProfileButton = new Button { Text = "Remove Profile", Width = 115, Height = 30 };
             removeProfileButton.Click += (_, _) => RemoveSelectedProfile();
 
-            var addWorkflowButton = new Button { Text = "Add Workflow", Width = 120, Height = 30 };
+            var addWorkflowButton = new Button { Text = "Add Workflow", Width = 110, Height = 30 };
             addWorkflowButton.Click += (_, _) => _addWorkflow();
 
-            var editWorkflowButton = new Button { Text = "Edit Workflow", Width = 120, Height = 30 };
+            var editWorkflowButton = new Button { Text = "Edit Workflow", Width = 110, Height = 30 };
             editWorkflowButton.Click += (_, _) => EditSelectedWorkflow();
 
-            var removeWorkflowButton = new Button { Text = "Remove Workflow", Width = 130, Height = 30 };
+            var removeWorkflowButton = new Button { Text = "Remove Workflow", Width = 125, Height = 30 };
             removeWorkflowButton.Click += (_, _) => RemoveSelectedWorkflow();
 
-            panel.Controls.Add(closeButton);
-            panel.Controls.Add(copyButton);
-            panel.Controls.Add(configButton);
-            panel.Controls.Add(addProfileButton);
-            panel.Controls.Add(editProfileButton);
-            panel.Controls.Add(removeProfileButton);
-            panel.Controls.Add(addWorkflowButton);
-            panel.Controls.Add(editWorkflowButton);
             panel.Controls.Add(removeWorkflowButton);
+            panel.Controls.Add(editWorkflowButton);
+            panel.Controls.Add(addWorkflowButton);
+            panel.Controls.Add(removeProfileButton);
+            panel.Controls.Add(editProfileButton);
+            panel.Controls.Add(addProfileButton);
+            panel.Controls.Add(configButton);
+            panel.Controls.Add(copyButton);
+            panel.Controls.Add(closeButton);
             return panel;
         }
 
