@@ -10,7 +10,7 @@ namespace InputFlow.App
     {
         public string Name { get; set; } = string.Empty;
         public string Mode { get; set; } = "toggle";
-        public string Trigger { get; set; } = string.Empty;
+        public List<string> Triggers { get; set; } = new();
         public string? TargetProfileId { get; set; }
         public List<string> TargetProfileIds { get; set; } = new();
         public string? FallbackProfileId { get; set; }
@@ -21,7 +21,7 @@ namespace InputFlow.App
     {
         private readonly TextBox _nameTextBox;
         private readonly ComboBox _modeComboBox;
-        private readonly TextBox _triggerTextBox;
+        private readonly TextBox _triggersTextBox;
         private readonly ComboBox _targetComboBox;
         private readonly ComboBox _fallbackComboBox;
         private readonly ComboBox _returnBehaviorComboBox;
@@ -39,7 +39,7 @@ namespace InputFlow.App
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
-            ClientSize = new System.Drawing.Size(560, 420);
+            ClientSize = new System.Drawing.Size(560, 460);
 
             var switchableProfiles = profiles
                 .Where(profile => profile.CanUseForSwitching)
@@ -55,10 +55,12 @@ namespace InputFlow.App
             };
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 135));
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            for (int i = 0; i < 6; i++)
-            {
-                root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-            }
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 72));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 110));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -72,7 +74,16 @@ namespace InputFlow.App
             _modeComboBox.SelectedIndex = 0;
             _modeComboBox.SelectedIndexChanged += (_, _) => UpdateModeVisibility();
 
-            _triggerTextBox = new TextBox { Dock = DockStyle.Fill, Text = "Ctrl+Shift+Space", AccessibleName = "Trigger", TabIndex = 2 };
+            _triggersTextBox = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                Text = "Ctrl+Shift+Space",
+                AccessibleName = "Triggers",
+                TabIndex = 2,
+                Multiline = true,
+                AcceptsReturn = true,
+                ScrollBars = ScrollBars.Vertical
+            };
             _targetComboBox = CreateProfileComboBox(switchableProfiles);
             _targetComboBox.AccessibleName = "Target profile";
             _targetComboBox.TabIndex = 3;
@@ -104,7 +115,7 @@ namespace InputFlow.App
 
             AddRow(root, 0, "Name", _nameTextBox);
             AddRow(root, 1, "Mode", _modeComboBox);
-            AddRow(root, 2, "Trigger", _triggerTextBox);
+            AddRow(root, 2, "Triggers", _triggersTextBox);
             root.Controls.Add(_targetLabel, 0, 3);
             root.Controls.Add(_targetComboBox, 1, 3);
             root.Controls.Add(_fallbackLabel, 0, 4);
@@ -164,18 +175,19 @@ namespace InputFlow.App
                 return;
             }
 
-            var parsedTrigger = InputFlowTriggerParser.Parse(_triggerTextBox.Text);
-            if (!parsedTrigger.Success)
+            var triggers = ParseTriggers();
+            if (!triggers.Success)
             {
-                _errorLabel.Text = parsedTrigger.Error ?? "Trigger is invalid.";
+                _errorLabel.Text = triggers.Error;
                 return;
             }
 
-            if (parsedTrigger.IsSingleKeyTrigger)
+            if (triggers.SingleKeyTriggers.Count > 0)
             {
+                string triggerList = string.Join(", ", triggers.SingleKeyTriggers);
                 var result = MessageBox.Show(
                     this,
-                    $"'{parsedTrigger.NormalizedKeys}' is a single-key trigger. InputFlow will suppress that key while it is running.",
+                    $"The following triggers are single-key triggers: {triggerList}. InputFlow will suppress those keys while it is running.",
                     "InputFlow single-key trigger",
                     MessageBoxButtons.OKCancel,
                     MessageBoxIcon.Warning);
@@ -224,7 +236,7 @@ namespace InputFlow.App
             {
                 Name = _nameTextBox.Text.Trim(),
                 Mode = mode,
-                Trigger = parsedTrigger.NormalizedKeys,
+                Triggers = triggers.NormalizedTriggers,
                 TargetProfileId = mode.Equals("cycle", StringComparison.OrdinalIgnoreCase) || mode.Equals("previous", StringComparison.OrdinalIgnoreCase) ? null : target?.ProfileId,
                 TargetProfileIds = cycleTargets,
                 FallbackProfileId = mode.Equals("toggle", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(fallback?.ProfileId) ? fallback.ProfileId : null,
@@ -270,12 +282,50 @@ namespace InputFlow.App
             }
 
             _nameTextBox.Text = draft.Name;
-            _triggerTextBox.Text = draft.Trigger;
+            _triggersTextBox.Text = string.Join(Environment.NewLine, draft.Triggers);
             SelectMode(draft.Mode);
             SelectProfile(_targetComboBox, draft.TargetProfileId);
             SelectProfile(_fallbackComboBox, draft.FallbackProfileId);
             SelectReturnBehavior(draft.ReturnBehavior);
             SelectCycleTargets(draft.TargetProfileIds);
+        }
+
+        private TriggerParseResult ParseTriggers()
+        {
+            var lines = _triggersTextBox.Lines
+                .Select(line => line.Trim())
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .ToList();
+            if (lines.Count == 0)
+            {
+                return TriggerParseResult.Failed("At least one trigger is required.");
+            }
+
+            var normalized = new List<string>();
+            var singleKeyTriggers = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var line in lines)
+            {
+                var parsed = InputFlowTriggerParser.Parse(line);
+                if (!parsed.Success)
+                {
+                    string error = parsed.Error ?? "Trigger is invalid.";
+                    return TriggerParseResult.Failed($"Trigger '{line}' is invalid: {error}");
+                }
+
+                if (!seen.Add(parsed.NormalizedKeys))
+                {
+                    continue;
+                }
+
+                normalized.Add(parsed.NormalizedKeys);
+                if (parsed.IsSingleKeyTrigger)
+                {
+                    singleKeyTriggers.Add(parsed.NormalizedKeys);
+                }
+            }
+
+            return TriggerParseResult.Succeeded(normalized, singleKeyTriggers);
         }
 
         private void SelectMode(string mode)
@@ -406,6 +456,32 @@ namespace InputFlow.App
             public string Value { get; }
             private string Label { get; }
             public override string ToString() => Label;
+        }
+
+        private sealed class TriggerParseResult
+        {
+            private TriggerParseResult(bool success, List<string> normalizedTriggers, List<string> singleKeyTriggers, string error)
+            {
+                Success = success;
+                NormalizedTriggers = normalizedTriggers;
+                SingleKeyTriggers = singleKeyTriggers;
+                Error = error;
+            }
+
+            public bool Success { get; }
+            public List<string> NormalizedTriggers { get; }
+            public List<string> SingleKeyTriggers { get; }
+            public string Error { get; }
+
+            public static TriggerParseResult Succeeded(List<string> normalizedTriggers, List<string> singleKeyTriggers)
+            {
+                return new TriggerParseResult(true, normalizedTriggers, singleKeyTriggers, string.Empty);
+            }
+
+            public static TriggerParseResult Failed(string error)
+            {
+                return new TriggerParseResult(false, new List<string>(), new List<string>(), error);
+            }
         }
     }
 }

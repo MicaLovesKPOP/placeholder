@@ -612,7 +612,10 @@ namespace InputFlow.App
                     Id = workflowId,
                     Name = draft.Name,
                     Mode = draft.Mode,
-                    Triggers = new List<TriggerConfig> { new TriggerConfig { Keys = draft.Trigger } },
+                    Triggers = draft.Triggers
+                        .Where(trigger => !string.IsNullOrWhiteSpace(trigger))
+                        .Select(trigger => new TriggerConfig { Keys = trigger.Trim() })
+                        .ToList(),
                     ReturnBehavior = draft.ReturnBehavior,
                     Fallback = draft.FallbackProfileId
                 };
@@ -656,7 +659,10 @@ namespace InputFlow.App
                 {
                     Name = string.IsNullOrWhiteSpace(workflow.Name) ? workflow.Id : workflow.Name,
                     Mode = mode,
-                    Trigger = workflow.Triggers.FirstOrDefault(trigger => !string.IsNullOrWhiteSpace(trigger.Keys))?.Keys ?? string.Empty,
+                    Triggers = workflow.Triggers
+                        .Where(trigger => !string.IsNullOrWhiteSpace(trigger.Keys))
+                        .Select(trigger => trigger.Keys.Trim())
+                        .ToList(),
                     TargetProfileId = workflow.Target,
                     TargetProfileIds = workflow.Targets
                         .Where(target => !string.IsNullOrWhiteSpace(target))
