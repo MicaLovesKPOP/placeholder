@@ -450,6 +450,8 @@ static void DiagnosticsReportIncludesProfileInventoryAndMatches()
     var report = InputFlowDiagnostics.BuildReport(config, CreateInstalledProfiles(), "C:\\InputFlow\\inputflow.json", "C:\\InputFlow\\inputflow.log");
 
     AssertContains(new[] { report }, "InputFlow diagnostics");
+    AssertContains(new[] { report }, "Last-good config path: C:\\InputFlow\\inputflow.json.last-good");
+    AssertContains(new[] { report }, "(missing)");
     AssertContains(new[] { report }, "Configured workflows: 1");
     AssertContains(new[] { report }, "Installed input profiles: 4");
     AssertContains(new[] { report }, "Setup profile options: 4");

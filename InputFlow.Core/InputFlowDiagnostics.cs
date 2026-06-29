@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 
@@ -17,9 +18,11 @@ namespace InputFlow.Core
             string logPath)
         {
             var builder = new StringBuilder();
+            string lastKnownGoodPath = InputFlowConfigWriter.GetLastKnownGoodPath(configPath);
             builder.AppendLine("InputFlow diagnostics");
             builder.AppendLine($"Generated: {DateTimeOffset.Now:O}");
             builder.AppendLine($"Config path: {configPath}");
+            builder.AppendLine($"Last-good config path: {lastKnownGoodPath} ({FormatExists(lastKnownGoodPath)})");
             builder.AppendLine($"Log path: {logPath}");
             builder.AppendLine($"Config version: {config.Version}");
             builder.AppendLine($"Tray icon visible: {config.ShowTrayIcon}");
@@ -148,6 +151,11 @@ namespace InputFlow.Core
         {
             var filtered = values.Where(value => !string.IsNullOrWhiteSpace(value)).ToList();
             return filtered.Count == 0 ? "(none)" : string.Join(", ", filtered);
+        }
+
+        private static string FormatExists(string path)
+        {
+            return File.Exists(path) ? "exists" : "missing";
         }
     }
 }
