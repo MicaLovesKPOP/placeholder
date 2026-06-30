@@ -338,6 +338,7 @@ namespace InputFlow.App
                         _setupStatusForm = new SetupStatusForm(
                             CopyDiagnostics,
                             () => OpenPath(_configPath, "config file"),
+                            RefreshInstalledProfiles,
                             OpenAddProfile,
                             OpenAddProfile,
                             EditProfile,
@@ -357,6 +358,36 @@ namespace InputFlow.App
                 catch (Exception ex)
                 {
                     _logger.Warning($"Cannot open setup status window: {ex.Message}");
+                }
+            }
+
+            private void RefreshInstalledProfiles()
+            {
+                try
+                {
+                    _logger.Info("Refreshing installed Windows input profiles...");
+                    _installedProfiles = InputProfileManager.EnumerateInstalledProfiles();
+
+                    UnregisterAllHotkeys();
+                    _manager.ClearHotkeys();
+                    _manager.UpdateRuntimeState(_installedProfiles, _config.ExcludedProcesses);
+
+                    LogInstalledProfiles(_installedProfiles);
+                    LogProfileMatches(_installedProfiles, _config.Profiles);
+                    RegisterHotkeys();
+                    RefreshSetupStatusWindow();
+
+                    _logger.Info("Installed Windows input profiles refreshed.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"Failed to refresh installed Windows input profiles: {ex.Message}");
+                    MessageBox.Show(
+                        _setupStatusForm,
+                        $"InputFlow could not refresh installed Windows input profiles:{Environment.NewLine}{ex.Message}",
+                        "InputFlow",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
                 }
             }
 

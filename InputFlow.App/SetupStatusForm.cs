@@ -14,6 +14,7 @@ namespace InputFlow.App
         private readonly ListView _excludedProcessesList;
         private readonly Action _copyDiagnostics;
         private readonly Action _openConfig;
+        private readonly Action _refreshInstalledProfiles;
         private readonly Action _addProfile;
         private readonly Action<InputProfile> _addProfileForInstalledProfile;
         private readonly Action<string> _editProfile;
@@ -27,6 +28,7 @@ namespace InputFlow.App
         public SetupStatusForm(
             Action copyDiagnostics,
             Action openConfig,
+            Action refreshInstalledProfiles,
             Action addProfile,
             Action<InputProfile> addProfileForInstalledProfile,
             Action<string> editProfile,
@@ -39,6 +41,7 @@ namespace InputFlow.App
         {
             _copyDiagnostics = copyDiagnostics;
             _openConfig = openConfig;
+            _refreshInstalledProfiles = refreshInstalledProfiles;
             _addProfile = addProfile;
             _addProfileForInstalledProfile = addProfileForInstalledProfile;
             _editProfile = editProfile;
@@ -217,6 +220,9 @@ namespace InputFlow.App
             var configButton = new Button { Text = "Open Config", Width = 100, Height = 30 };
             configButton.Click += (_, _) => _openConfig();
 
+            var refreshProfilesButton = new Button { Text = "Refresh Profiles", Width = 120, Height = 30 };
+            refreshProfilesButton.Click += (_, _) => _refreshInstalledProfiles();
+
             var addProfileButton = new Button { Text = "Add Profile", Width = 100, Height = 30 };
             addProfileButton.Click += (_, _) => _addProfile();
 
@@ -241,6 +247,7 @@ namespace InputFlow.App
             panel.Controls.Add(removeProfileButton);
             panel.Controls.Add(editProfileButton);
             panel.Controls.Add(addProfileButton);
+            panel.Controls.Add(refreshProfilesButton);
             panel.Controls.Add(configButton);
             panel.Controls.Add(copyButton);
             panel.Controls.Add(closeButton);
