@@ -179,14 +179,16 @@ namespace InputFlow.Core
             IReadOnlyList<WorkflowConfig> workflows,
             IReadOnlyDictionary<string, SetupConfiguredProfileOption> configuredById)
         {
+            var duplicateTriggers = FindDuplicateTriggers(workflows);
             return workflows
-                .Select(workflow => BuildWorkflow(workflow, configuredById))
+                .Select(workflow => BuildWorkflow(workflow, configuredById, duplicateTriggers))
                 .ToList();
         }
 
         private static SetupWorkflowOption BuildWorkflow(
             WorkflowConfig workflow,
-            IReadOnlyDictionary<string, SetupConfiguredProfileOption> configuredById)
+            IReadOnlyDictionary<string, SetupConfiguredProfileOption> configuredById,
+            IReadOnlySet<string> duplicateTriggers)
         {
             var targets = GetWorkflowTargetIds(workflow).ToList();
             var triggers = workflow.Triggers
@@ -198,6 +200,10 @@ namespace InputFlow.Core
             if (triggers.Count == 0)
             {
                 blockingReasons.Add("No trigger is configured.");
+            }
+            else
+            {
+                AddTriggerBlockingReasons(triggers, duplicateTriggers, blockingReasons);
             }
 
             if (targets.Count == 0 && !IsPreviousWorkflow(workflow))
@@ -224,6 +230,54 @@ namespace InputFlow.Core
                 targets,
                 fallback,
                 blockingReasons);
+        }
+
+        private static HashSet<string> FindDuplicateTriggers(IReadOnlyList<WorkflowConfig> workflows)
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var duplicates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var workflow in workflows)
+            {
+                foreach (var trigger in workflow.Triggers.Where(trigger => trigger != null && !string.IsNullOrWhiteSpace(trigger.Keys)))
+                {
+                    var parsed = InputFlowTriggerParser.Parse(trigger.Keys);
+                    if (!parsed.Success)
+                    {
+                        continue;
+                    }
+
+                    if (!seen.Add(parsed.NormalizedKeys))
+                    {
+                        duplicates.Add(parsed.NormalizedKeys);
+                    }
+                }
+            }
+
+            return duplicates;
+        }
+
+        private static void AddTriggerBlockingReasons(
+            IReadOnlyList<string> triggers,
+            IReadOnlySet<string> duplicateTriggers,
+            List<string> blockingReasons)
+        {
+            var addedReasons = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string trigger in triggers)
+            {
+                var parsed = InputFlowTriggerParser.Parse(trigger);
+                if (!parsed.Success)
+                {
+                    addedReasons.Add($"Trigger '{trigger}' is invalid: {parsed.Error}");
+                    continue;
+                }
+
+                if (duplicateTriggers.Contains(parsed.NormalizedKeys))
+                {
+                    addedReasons.Add($"Trigger '{parsed.NormalizedKeys}' is configured more than once.");
+                }
+            }
+
+            blockingReasons.AddRange(addedReasons);
         }
 
         private static void AddProfileBlockingReason(

@@ -10,6 +10,7 @@ var tests = new (string Name, Action Test)[]
     ("LegacyV1HotkeysMigrateToWorkflows", LegacyV1HotkeysMigrateToWorkflows),
     ("InvalidWorkflowProfileReferenceIsRejected", InvalidWorkflowProfileReferenceIsRejected),
     ("InvalidWorkflowTriggerIsRejected", InvalidWorkflowTriggerIsRejected),
+    ("DuplicateWorkflowTriggerIsRejected", DuplicateWorkflowTriggerIsRejected),
     ("TriggerParserRecognizesChordsAndSingleKeys", TriggerParserRecognizesChordsAndSingleKeys),
     ("CycleWorkflowRequiresTwoTargets", CycleWorkflowRequiresTwoTargets),
     ("ThreeProfileCycleConfigIsValid", ThreeProfileCycleConfigIsValid),
@@ -36,7 +37,8 @@ var tests = new (string Name, Action Test)[]
     ("FirstRunConfigHandlesUnknownLanguageTags", FirstRunConfigHandlesUnknownLanguageTags),
     ("SetupModelIncludesProfileOptionsAndWorkflowReadiness", SetupModelIncludesProfileOptionsAndWorkflowReadiness),
     ("SetupModelIncludesExcludedProcesses", SetupModelIncludesExcludedProcesses),
-    ("SetupModelBlocksAmbiguousAndMissingProfiles", SetupModelBlocksAmbiguousAndMissingProfiles)
+    ("SetupModelBlocksAmbiguousAndMissingProfiles", SetupModelBlocksAmbiguousAndMissingProfiles),
+    ("SetupModelBlocksDuplicateTriggers", SetupModelBlocksDuplicateTriggers)
 };
 
 int failed = 0;
@@ -126,6 +128,22 @@ static void InvalidWorkflowTriggerIsRejected()
     var errors = InputFlowConfigValidator.Validate(config);
 
     AssertContains(errors, "Keys 'Ctrl+NoSuchKey' is invalid");
+}
+
+static void DuplicateWorkflowTriggerIsRejected()
+{
+    var config = CreateKnownWorkingWorkflowConfig();
+    config.Workflows.Add(new WorkflowConfig
+    {
+        Id = "duplicate-trigger",
+        Name = "Duplicate trigger",
+        Mode = "previous",
+        Triggers = new List<TriggerConfig> { new TriggerConfig { Keys = "right alt" } }
+    });
+
+    var errors = InputFlowConfigValidator.Validate(config);
+
+    AssertContains(errors, "duplicates trigger 'RightAlt'");
 }
 
 static void TriggerParserRecognizesChordsAndSingleKeys()
@@ -615,6 +633,25 @@ static void SetupModelBlocksAmbiguousAndMissingProfiles()
     AssertFalse(workflow.CanRegister, "Workflow should be blocked.");
     AssertContains(workflow.BlockingReasons, "Target profile 'ambiguous' is ambiguous.");
     AssertContains(workflow.BlockingReasons, "Fallback profile 'missing' is missing.");
+}
+
+static void SetupModelBlocksDuplicateTriggers()
+{
+    var config = CreateKnownWorkingWorkflowConfig();
+    config.Workflows.Add(new WorkflowConfig
+    {
+        Id = "duplicate-trigger",
+        Name = "Duplicate trigger",
+        Mode = "previous",
+        Triggers = new List<TriggerConfig> { new TriggerConfig { Keys = "right alt" } }
+    });
+
+    var model = InputFlowSetupModelBuilder.Build(config, CreateInstalledProfiles());
+
+    AssertFalse(model.Workflows.All(workflow => workflow.CanRegister), "Duplicate trigger should block at least one workflow.");
+    AssertTrue(
+        model.Workflows.All(workflow => workflow.BlockingReasons.Contains("Trigger 'RightAlt' is configured more than once.")),
+        "Both duplicate workflows should report the duplicate trigger.");
 }
 
 static InputFlowConfig CreateKnownWorkingWorkflowConfig()

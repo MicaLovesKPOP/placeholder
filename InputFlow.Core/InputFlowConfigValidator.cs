@@ -130,6 +130,7 @@ namespace InputFlow.Core
                 .Select(p => p.Id.Trim())
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var seenTriggers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             for (int i = 0; i < workflows.Count; i++)
             {
@@ -158,7 +159,7 @@ namespace InputFlow.Core
                     continue;
                 }
 
-                ValidateWorkflowTriggers(workflow, label, errors);
+                ValidateWorkflowTriggers(workflow, label, seenTriggers, errors);
                 ValidateWorkflowTargets(workflow, label, mode, profileIds, errors);
                 ValidateWorkflowReturnBehavior(workflow, label, mode, errors);
 
@@ -169,7 +170,7 @@ namespace InputFlow.Core
             }
         }
 
-        private static void ValidateWorkflowTriggers(WorkflowConfig workflow, string label, List<string> errors)
+        private static void ValidateWorkflowTriggers(WorkflowConfig workflow, string label, Dictionary<string, string> seenTriggers, List<string> errors)
         {
             if (workflow.Triggers == null || workflow.Triggers.Count == 0)
             {
@@ -194,6 +195,18 @@ namespace InputFlow.Core
                     if (!parseResult.Success)
                     {
                         errors.Add($"{label}.Triggers[{i}].Keys '{trigger.Keys}' is invalid: {parseResult.Error}");
+                    }
+                    else
+                    {
+                        string triggerOwner = $"{label}.Triggers[{i}]";
+                        if (seenTriggers.TryGetValue(parseResult.NormalizedKeys, out string? existingOwner))
+                        {
+                            errors.Add($"{triggerOwner}.Keys '{trigger.Keys}' duplicates trigger '{parseResult.NormalizedKeys}' already used by {existingOwner}.");
+                        }
+                        else
+                        {
+                            seenTriggers.Add(parseResult.NormalizedKeys, triggerOwner);
+                        }
                     }
                 }
             }
