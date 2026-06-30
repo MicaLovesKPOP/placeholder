@@ -48,8 +48,8 @@ namespace InputFlow.App
 
             Text = "InputFlow Setup Status";
             StartPosition = FormStartPosition.CenterScreen;
-            MinimumSize = new System.Drawing.Size(1080, 640);
-            Size = new System.Drawing.Size(1160, 720);
+            MinimumSize = new System.Drawing.Size(1080, 680);
+            Size = new System.Drawing.Size(1160, 740);
             KeyPreview = true;
             KeyDown += (_, e) =>
             {
@@ -72,7 +72,7 @@ namespace InputFlow.App
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 128));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
 
             _recoveryStatusLabel = new Label
             {
@@ -195,8 +195,9 @@ namespace InputFlow.App
             {
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false,
-                Padding = new Padding(0, 4, 0, 0)
+                WrapContents = true,
+                Padding = new Padding(4),
+                AutoScroll = true
             };
 
             var closeButton = new Button { Text = "Close", Width = 100, Height = 30 };
@@ -427,7 +428,8 @@ namespace InputFlow.App
             {
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.TopDown,
-                WrapContents = false
+                WrapContents = false,
+                Padding = new Padding(8, 4, 0, 0)
             };
 
             var addButton = new Button { Text = "Add", Width = 120, Height = 28 };
