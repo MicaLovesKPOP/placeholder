@@ -21,11 +21,16 @@ namespace InputFlow.App
         private readonly ComboBox _enterModeComboBox;
         private readonly Label _errorLabel;
         private readonly bool _allowIdEdit;
+        private readonly HashSet<string> _existingProfileIds;
         private string _lastSuggestedId = string.Empty;
 
         public ProfileDialog(IReadOnlyList<SetupInstalledProfileOption> installedProfiles, ProfileDraft? initialDraft = null, bool allowIdEdit = true)
         {
             _allowIdEdit = allowIdEdit;
+            _existingProfileIds = installedProfiles
+                .SelectMany(profile => profile.ConfiguredProfileIds)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             Text = initialDraft == null ? "Add Profile" : "Edit Profile";
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -125,6 +130,13 @@ namespace InputFlow.App
                 return;
             }
 
+            string profileId = _idTextBox.Text.Trim();
+            if (_allowIdEdit && _existingProfileIds.Contains(profileId))
+            {
+                _errorLabel.Text = $"Profile ID '{profileId}' is already configured.";
+                return;
+            }
+
             if (_installedProfileComboBox.SelectedItem is not InstalledProfileItem selected)
             {
                 _errorLabel.Text = "Windows profile is required.";
@@ -134,7 +146,7 @@ namespace InputFlow.App
             var enterMode = _enterModeComboBox.SelectedItem as EnterModeItem;
             Draft = new ProfileDraft
             {
-                ProfileId = _idTextBox.Text.Trim(),
+                ProfileId = profileId,
                 InstalledProfile = selected.Profile,
                 EnterMode = enterMode?.Value
             };
@@ -212,7 +224,7 @@ namespace InputFlow.App
             }
         }
 
-        private static string CreateProfileId(InputProfile profile)
+        private string CreateProfileId(InputProfile profile)
         {
             string source = !string.IsNullOrWhiteSpace(profile.LanguageTag)
                 ? profile.LanguageTag
@@ -221,7 +233,22 @@ namespace InputFlow.App
                     : profile.KLID;
 
             string slug = Slugify(source);
-            return string.IsNullOrWhiteSpace(slug) ? $"profile-{profile.KLID.ToLowerInvariant()}" : slug;
+            string baseId = string.IsNullOrWhiteSpace(slug) ? $"profile-{profile.KLID.ToLowerInvariant()}" : slug;
+            if (!_existingProfileIds.Contains(baseId))
+            {
+                return baseId;
+            }
+
+            for (int suffix = 2; suffix < 1000; suffix++)
+            {
+                string candidate = $"{baseId}-{suffix}";
+                if (!_existingProfileIds.Contains(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return $"{baseId}-{Guid.NewGuid():N}"[..Math.Min(64, baseId.Length + 33)];
         }
 
         private void RefreshEnterModeOptions(string? preferredEnterMode)
