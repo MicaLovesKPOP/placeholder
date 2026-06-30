@@ -339,6 +339,7 @@ namespace InputFlow.App
                             CopyDiagnostics,
                             () => OpenPath(_configPath, "config file"),
                             OpenAddProfile,
+                            OpenAddProfile,
                             EditProfile,
                             RemoveProfile,
                             OpenAddWorkflow,
@@ -382,6 +383,11 @@ namespace InputFlow.App
 
             private void OpenAddProfile()
             {
+                OpenAddProfile(null);
+            }
+
+            private void OpenAddProfile(InputProfile? initialProfile)
+            {
                 var setup = InputFlowSetupModelBuilder.Build(_config, _installedProfiles);
                 if (setup.InstalledProfiles.Count == 0)
                 {
@@ -394,7 +400,10 @@ namespace InputFlow.App
                     return;
                 }
 
-                using var dialog = new ProfileDialog(setup.InstalledProfiles);
+                var initialDraft = initialProfile == null
+                    ? null
+                    : new ProfileDraft { InstalledProfile = initialProfile };
+                using var dialog = new ProfileDialog(setup.InstalledProfiles, initialDraft);
                 if (dialog.ShowDialog(_setupStatusForm) != DialogResult.OK)
                 {
                     return;

@@ -149,6 +149,7 @@ namespace InputFlow.App
             {
                 _idTextBox.Text = draft.ProfileId;
                 SelectInstalledProfile(draft.InstalledProfile);
+                SuggestProfileId();
                 SelectEnterMode(draft.EnterMode);
                 return;
             }

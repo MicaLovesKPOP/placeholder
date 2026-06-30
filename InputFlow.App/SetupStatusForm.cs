@@ -15,6 +15,7 @@ namespace InputFlow.App
         private readonly Action _copyDiagnostics;
         private readonly Action _openConfig;
         private readonly Action _addProfile;
+        private readonly Action<InputProfile> _addProfileForInstalledProfile;
         private readonly Action<string> _editProfile;
         private readonly Action<string> _removeProfile;
         private readonly Action _addWorkflow;
@@ -27,6 +28,7 @@ namespace InputFlow.App
             Action copyDiagnostics,
             Action openConfig,
             Action addProfile,
+            Action<InputProfile> addProfileForInstalledProfile,
             Action<string> editProfile,
             Action<string> removeProfile,
             Action addWorkflow,
@@ -38,6 +40,7 @@ namespace InputFlow.App
             _copyDiagnostics = copyDiagnostics;
             _openConfig = openConfig;
             _addProfile = addProfile;
+            _addProfileForInstalledProfile = addProfileForInstalledProfile;
             _editProfile = editProfile;
             _removeProfile = removeProfile;
             _addWorkflow = addWorkflow;
@@ -90,7 +93,9 @@ namespace InputFlow.App
 
             _installedProfilesList = CreateListView("Installed profile", "Configured as");
             _installedProfilesList.AccessibleName = "Installed profile options";
-            _installedProfilesList.AccessibleDescription = "Windows input profiles detected by InputFlow.";
+            _installedProfilesList.AccessibleDescription = "Windows input profiles detected by InputFlow. Press Enter to add or edit setup for the selected Windows profile.";
+            _installedProfilesList.DoubleClick += (_, _) => ConfigureSelectedInstalledProfile();
+            _installedProfilesList.KeyDown += (_, e) => HandleInstalledProfileKeyDown(e);
 
             _workflowsList = CreateListView("Workflow", "ID", "Mode", "Status", "Triggers", "Targets", "Fallback", "Blocking reasons");
             _workflowsList.AccessibleName = "Workflow readiness";
@@ -147,7 +152,10 @@ namespace InputFlow.App
                     {
                         profile.DisplayName,
                         FormatList(profile.ConfiguredProfileIds)
-                    }));
+                    })
+                    {
+                        Tag = profile
+                    });
                 }
 
                 _workflowsList.Items.Clear();
@@ -248,6 +256,34 @@ namespace InputFlow.App
             }
 
             _editProfile(profileId);
+        }
+
+        private void ConfigureSelectedInstalledProfile()
+        {
+            var profile = GetSelectedInstalledProfile();
+            if (profile == null)
+            {
+                return;
+            }
+
+            if (profile.ConfiguredProfileIds.Count == 0)
+            {
+                _addProfileForInstalledProfile(profile.Profile);
+                return;
+            }
+
+            if (profile.ConfiguredProfileIds.Count == 1)
+            {
+                _editProfile(profile.ConfiguredProfileIds[0]);
+                return;
+            }
+
+            MessageBox.Show(
+                this,
+                $"This Windows profile is configured as: {FormatList(profile.ConfiguredProfileIds)}. Select the configured profile above to edit the one you want.",
+                "InputFlow",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
         }
 
         private void RemoveSelectedProfile()
@@ -356,6 +392,15 @@ namespace InputFlow.App
             }
         }
 
+        private void HandleInstalledProfileKeyDown(KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                ConfigureSelectedInstalledProfile();
+                e.Handled = true;
+            }
+        }
+
         private void HandleExcludedProcessKeyDown(KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Delete)
@@ -380,6 +425,23 @@ namespace InputFlow.App
             }
 
             MessageBox.Show(this, "The selected profile has no ID.", "InputFlow", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return null;
+        }
+
+        private SetupInstalledProfileOption? GetSelectedInstalledProfile()
+        {
+            if (_installedProfilesList.SelectedItems.Count == 0)
+            {
+                MessageBox.Show(this, "Select an installed Windows profile first.", "InputFlow", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return null;
+            }
+
+            if (_installedProfilesList.SelectedItems[0].Tag is SetupInstalledProfileOption profile)
+            {
+                return profile;
+            }
+
+            MessageBox.Show(this, "The selected installed profile could not be read.", "InputFlow", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return null;
         }
 
