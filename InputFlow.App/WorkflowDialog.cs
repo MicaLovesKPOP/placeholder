@@ -27,11 +27,13 @@ namespace InputFlow.App
         private readonly ComboBox _returnBehaviorComboBox;
         private readonly CheckedListBox _cycleTargetsList;
         private readonly Control _cycleTargetsControl;
+        private readonly Label _modeHelpLabel;
         private readonly Label _targetLabel;
         private readonly Label _cycleTargetsLabel;
         private readonly Label _fallbackLabel;
         private readonly Label _returnBehaviorLabel;
         private readonly Label _errorLabel;
+        private readonly ToolTip _toolTip = new ToolTip();
 
         public WorkflowDialog(IReadOnlyList<SetupConfiguredProfileOption> profiles, WorkflowDraft? initialDraft = null)
         {
@@ -40,7 +42,7 @@ namespace InputFlow.App
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
-            ClientSize = new System.Drawing.Size(560, 460);
+            ClientSize = new System.Drawing.Size(680, 560);
 
             var switchableProfiles = profiles
                 .Where(profile => profile.CanUseForSwitching)
@@ -52,19 +54,20 @@ namespace InputFlow.App
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 9,
+                RowCount = 10,
                 Padding = new Padding(12)
             };
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 135));
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 72));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 86));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 110));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 132));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             _nameTextBox = new TextBox { Dock = DockStyle.Fill, Text = "Language workflow", AccessibleName = "Workflow name", TabIndex = 0 };
@@ -74,7 +77,12 @@ namespace InputFlow.App
             _modeComboBox.Items.Add(new ModeItem("cycle", "Cycle"));
             _modeComboBox.Items.Add(new ModeItem("previous", "Previous profile"));
             _modeComboBox.SelectedIndex = 0;
-            _modeComboBox.SelectedIndexChanged += (_, _) => UpdateModeVisibility();
+            _modeComboBox.SelectedIndexChanged += (_, _) =>
+            {
+                UpdateModeVisibility();
+                UpdateModeHelp();
+            };
+            var modeControl = CreateModeControl();
 
             _triggersTextBox = new TextBox
             {
@@ -85,6 +93,13 @@ namespace InputFlow.App
                 Multiline = true,
                 AcceptsReturn = true,
                 ScrollBars = ScrollBars.Vertical
+            };
+            _modeHelpLabel = new Label
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = false,
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
+                ForeColor = System.Drawing.SystemColors.GrayText
             };
             _targetComboBox = CreateProfileComboBox(switchableProfiles);
             _targetComboBox.AccessibleName = "Target profile";
@@ -117,26 +132,30 @@ namespace InputFlow.App
             };
 
             AddRow(root, 0, "Name", _nameTextBox);
-            AddRow(root, 1, "Mode", _modeComboBox);
-            AddRow(root, 2, "Triggers", _triggersTextBox);
-            root.Controls.Add(_targetLabel, 0, 3);
-            root.Controls.Add(_targetComboBox, 1, 3);
-            root.Controls.Add(_fallbackLabel, 0, 4);
-            root.Controls.Add(_fallbackComboBox, 1, 4);
-            root.Controls.Add(_returnBehaviorLabel, 0, 5);
-            root.Controls.Add(_returnBehaviorComboBox, 1, 5);
-            root.Controls.Add(_cycleTargetsLabel, 0, 6);
-            root.Controls.Add(_cycleTargetsControl, 1, 6);
-            root.Controls.Add(_errorLabel, 0, 7);
+            AddRow(root, 1, "Mode", modeControl);
+            root.Controls.Add(_modeHelpLabel, 0, 2);
+            root.SetColumnSpan(_modeHelpLabel, 2);
+            AddRow(root, 3, "Triggers", _triggersTextBox);
+            root.Controls.Add(_targetLabel, 0, 4);
+            root.Controls.Add(_targetComboBox, 1, 4);
+            root.Controls.Add(_fallbackLabel, 0, 5);
+            root.Controls.Add(_fallbackComboBox, 1, 5);
+            root.Controls.Add(_returnBehaviorLabel, 0, 6);
+            root.Controls.Add(_returnBehaviorComboBox, 1, 6);
+            root.Controls.Add(_cycleTargetsLabel, 0, 7);
+            root.Controls.Add(_cycleTargetsControl, 1, 7);
+            root.Controls.Add(_errorLabel, 0, 8);
             root.SetColumnSpan(_errorLabel, 2);
             var buttonRow = CreateButtonRow();
-            root.Controls.Add(buttonRow, 0, 8);
+            root.Controls.Add(buttonRow, 0, 9);
             root.SetColumnSpan(buttonRow, 2);
 
             Controls.Add(root);
+            ConfigureToolTips();
 
             ApplyInitialDraft(initialDraft);
             UpdateModeVisibility();
+            UpdateModeHelp();
         }
 
         public WorkflowDraft Draft { get; private set; } = new WorkflowDraft();
@@ -165,6 +184,31 @@ namespace InputFlow.App
             AcceptButton = saveButton;
             CancelButton = cancelButton;
             return panel;
+        }
+
+        private Control CreateModeControl()
+        {
+            var root = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1
+            };
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 42));
+
+            var helpButton = new Button
+            {
+                Text = "?",
+                Dock = DockStyle.Fill,
+                AccessibleName = "Workflow mode help",
+                TabIndex = 9
+            };
+            helpButton.Click += (_, _) => ShowModeHelp();
+
+            root.Controls.Add(_modeComboBox, 0, 0);
+            root.Controls.Add(helpButton, 1, 0);
+            return root;
         }
 
         private void Save()
@@ -273,6 +317,38 @@ namespace InputFlow.App
             _fallbackComboBox.Visible = isToggle;
             _returnBehaviorLabel.Visible = isToggle;
             _returnBehaviorComboBox.Visible = isToggle;
+        }
+
+        private void UpdateModeHelp()
+        {
+            _modeHelpLabel.Text = GetSelectedMode() switch
+            {
+                "switchTo" => "Direct switch always switches to the target profile. Pressing the trigger again keeps switching to that same target.",
+                "cycle" => "Cycle advances through the checked target profiles in list order. Use Move Up and Move Down to set the order.",
+                "previous" => "Previous profile switches back to the last profile InputFlow saw before the current one.",
+                _ => "Toggle switches to the target profile, then returns according to the selected return behavior."
+            };
+        }
+
+        private void ShowModeHelp()
+        {
+            MessageBox.Show(
+                this,
+                "Toggle: switch to one target, then return using the selected return behavior.\n\nDirect switch: always switch to one target, with no automatic return.\n\nCycle: move through checked targets in list order. Use Move Up and Move Down to set the order.\n\nPrevious profile: jump back to the last profile InputFlow observed.",
+                "InputFlow workflow modes",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
+
+        private void ConfigureToolTips()
+        {
+            _toolTip.SetToolTip(_nameTextBox, "A label for this workflow in Setup Status and logs.");
+            _toolTip.SetToolTip(_modeComboBox, "Choose how InputFlow responds when the trigger is pressed.");
+            _toolTip.SetToolTip(_triggersTextBox, "Enter one trigger per line, for example Ctrl+Shift+Space or F13.");
+            _toolTip.SetToolTip(_targetComboBox, "The profile this workflow switches to.");
+            _toolTip.SetToolTip(_fallbackComboBox, "Optional return profile for toggle workflows.");
+            _toolTip.SetToolTip(_returnBehaviorComboBox, "Controls how toggle workflows return from the target profile.");
+            _toolTip.SetToolTip(_cycleTargetsList, "Checked profiles are cycled in the order shown.");
         }
 
         private string GetSelectedMode()
