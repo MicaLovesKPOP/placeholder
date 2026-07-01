@@ -45,6 +45,7 @@ namespace InputFlow.App
                 .Where(profile => profile.CanUseForSwitching)
                 .Select(profile => new ProfileItem(profile.ProfileId, FormatProfileLabel(profile)))
                 .ToList();
+            switchableProfiles = OrderProfilesForDraft(switchableProfiles, initialDraft);
 
             var root = new TableLayoutPanel
             {
@@ -425,6 +426,28 @@ namespace InputFlow.App
                 ? profile.Summary
                 : InputProfileManager.FormatProfile(profile.MatchedProfile);
             return $"{profile.ProfileId} - {matched}";
+        }
+
+        private static List<ProfileItem> OrderProfilesForDraft(List<ProfileItem> profiles, WorkflowDraft? draft)
+        {
+            if (draft == null || draft.TargetProfileIds.Count == 0)
+            {
+                return profiles;
+            }
+
+            var profilesById = profiles.ToDictionary(profile => profile.ProfileId, StringComparer.OrdinalIgnoreCase);
+            var ordered = new List<ProfileItem>();
+            var selectedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string profileId in draft.TargetProfileIds)
+            {
+                if (profilesById.TryGetValue(profileId, out var profile) && selectedIds.Add(profile.ProfileId))
+                {
+                    ordered.Add(profile);
+                }
+            }
+
+            ordered.AddRange(profiles.Where(profile => !selectedIds.Contains(profile.ProfileId)));
+            return ordered;
         }
 
         private sealed class ProfileItem
