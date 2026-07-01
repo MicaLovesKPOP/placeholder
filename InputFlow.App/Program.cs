@@ -377,7 +377,13 @@ namespace InputFlow.App
                     RegisterHotkeys();
                     RefreshSetupStatusWindow();
 
-                    _logger.Info("Installed Windows input profiles refreshed.");
+                    _logger.Info($"Installed Windows input profiles refreshed. Found {_installedProfiles.Count} profiles.");
+                    MessageBox.Show(
+                        _setupStatusForm,
+                        $"Refreshed installed Windows input profiles. Found {_installedProfiles.Count} profiles.",
+                        "InputFlow",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
                 }
                 catch (Exception ex)
                 {
