@@ -43,7 +43,7 @@ namespace InputFlow.App
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
-            ClientSize = new System.Drawing.Size(680, 620);
+            ClientSize = new System.Drawing.Size(700, 680);
 
             var switchableProfiles = profiles
                 .Where(profile => profile.CanUseForSwitching)
@@ -54,20 +54,14 @@ namespace InputFlow.App
             var root = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 2,
-                RowCount = 11,
+                ColumnCount = 1,
+                RowCount = 6,
                 Padding = new Padding(12)
             };
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 86));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 132));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 148));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 118));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 224));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -151,26 +145,40 @@ namespace InputFlow.App
                 AutoSize = false
             };
 
-            AddRow(root, 0, "Name", _nameTextBox);
-            AddRow(root, 1, "Mode", modeControl);
-            root.Controls.Add(_modeHelpLabel, 0, 2);
-            root.SetColumnSpan(_modeHelpLabel, 2);
-            AddRow(root, 3, "Triggers", triggersControl);
-            root.Controls.Add(_targetLabel, 0, 4);
-            root.Controls.Add(_targetComboBox, 1, 4);
-            root.Controls.Add(_fallbackLabel, 0, 5);
-            root.Controls.Add(_fallbackComboBox, 1, 5);
-            root.Controls.Add(_returnBehaviorLabel, 0, 6);
-            root.Controls.Add(_returnBehaviorComboBox, 1, 6);
-            root.Controls.Add(_cycleTargetsLabel, 0, 7);
-            root.Controls.Add(_cycleTargetsControl, 1, 7);
-            root.Controls.Add(_summaryLabel, 0, 8);
-            root.SetColumnSpan(_summaryLabel, 2);
-            root.Controls.Add(_errorLabel, 0, 9);
-            root.SetColumnSpan(_errorLabel, 2);
+            var workflowSection = CreateTwoColumnLayout(3);
+            workflowSection.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            workflowSection.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            workflowSection.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            AddRow(workflowSection, 0, "Name", _nameTextBox);
+            AddRow(workflowSection, 1, "Mode", modeControl);
+            workflowSection.Controls.Add(_modeHelpLabel, 0, 2);
+            workflowSection.SetColumnSpan(_modeHelpLabel, 2);
+
+            var triggerSection = CreateTwoColumnLayout(1);
+            triggerSection.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            AddRow(triggerSection, 0, "Triggers", triggersControl);
+
+            var actionSection = CreateTwoColumnLayout(4);
+            actionSection.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            actionSection.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            actionSection.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            actionSection.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            actionSection.Controls.Add(_targetLabel, 0, 0);
+            actionSection.Controls.Add(_targetComboBox, 1, 0);
+            actionSection.Controls.Add(_fallbackLabel, 0, 1);
+            actionSection.Controls.Add(_fallbackComboBox, 1, 1);
+            actionSection.Controls.Add(_returnBehaviorLabel, 0, 2);
+            actionSection.Controls.Add(_returnBehaviorComboBox, 1, 2);
+            actionSection.Controls.Add(_cycleTargetsLabel, 0, 3);
+            actionSection.Controls.Add(_cycleTargetsControl, 1, 3);
+
+            root.Controls.Add(CreateSection("Workflow", workflowSection), 0, 0);
+            root.Controls.Add(CreateSection("Trigger", triggerSection), 0, 1);
+            root.Controls.Add(CreateSection("Action and return", actionSection), 0, 2);
+            root.Controls.Add(_summaryLabel, 0, 3);
+            root.Controls.Add(_errorLabel, 0, 4);
             var buttonRow = CreateButtonRow();
-            root.Controls.Add(buttonRow, 0, 10);
-            root.SetColumnSpan(buttonRow, 2);
+            root.Controls.Add(buttonRow, 0, 5);
 
             Controls.Add(root);
             ConfigureToolTips();
@@ -182,6 +190,33 @@ namespace InputFlow.App
         }
 
         public WorkflowDraft Draft { get; private set; } = new WorkflowDraft();
+
+        private static GroupBox CreateSection(string title, Control content)
+        {
+            var group = new GroupBox
+            {
+                Text = title,
+                Dock = DockStyle.Fill,
+                Padding = new Padding(10, 8, 10, 10)
+            };
+            content.Dock = DockStyle.Fill;
+            group.Controls.Add(content);
+            return group;
+        }
+
+        private static TableLayoutPanel CreateTwoColumnLayout(int rows)
+        {
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = rows,
+                Padding = new Padding(4, 8, 4, 4)
+            };
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            return layout;
+        }
 
         private Control CreateButtonRow()
         {
