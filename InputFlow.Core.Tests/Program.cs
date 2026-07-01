@@ -15,7 +15,10 @@ var tests = new (string Name, Action Test)[]
     ("TriggerParserRecognizesChordsAndSingleKeys", TriggerParserRecognizesChordsAndSingleKeys),
     ("CycleWorkflowRequiresTwoTargets", CycleWorkflowRequiresTwoTargets),
     ("ThreeProfileCycleConfigIsValid", ThreeProfileCycleConfigIsValid),
+    ("DirectSwitchWorkflowConfigIsValid", DirectSwitchWorkflowConfigIsValid),
     ("PreviousWorkflowConfigIsValidWithoutTarget", PreviousWorkflowConfigIsValidWithoutTarget),
+    ("ToggleWorkflowRejectsUnsupportedReturnBehavior", ToggleWorkflowRejectsUnsupportedReturnBehavior),
+    ("NonToggleWorkflowsIgnoreReturnBehavior", NonToggleWorkflowsIgnoreReturnBehavior),
     ("ProfilesRequireMatchCriteria", ProfilesRequireMatchCriteria),
     ("MalformedJsonReturnsLoadErrors", MalformedJsonReturnsLoadErrors),
     ("LegacyLoadFallsBackToDefaultsOnInvalidConfig", LegacyLoadFallsBackToDefaultsOnInvalidConfig),
@@ -39,6 +42,7 @@ var tests = new (string Name, Action Test)[]
     ("SetupModelIncludesProfileOptionsAndWorkflowReadiness", SetupModelIncludesProfileOptionsAndWorkflowReadiness),
     ("SetupModelIncludesExcludedProcesses", SetupModelIncludesExcludedProcesses),
     ("SetupModelBlocksAmbiguousAndMissingProfiles", SetupModelBlocksAmbiguousAndMissingProfiles),
+    ("SetupModelBlocksInvalidTrigger", SetupModelBlocksInvalidTrigger),
     ("SetupModelBlocksDuplicateTriggers", SetupModelBlocksDuplicateTriggers),
     ("SetupModelBlocksMatchingToggleTargetAndFallback", SetupModelBlocksMatchingToggleTargetAndFallback)
 };
@@ -213,6 +217,23 @@ static void ThreeProfileCycleConfigIsValid()
     AssertEqual(0, errors.Count, string.Join(Environment.NewLine, errors));
 }
 
+static void DirectSwitchWorkflowConfigIsValid()
+{
+    var config = CreateKnownWorkingWorkflowConfig();
+    config.Workflows[0] = new WorkflowConfig
+    {
+        Id = "direct-korean",
+        Name = "Direct Korean",
+        Mode = "switchTo",
+        Triggers = new List<TriggerConfig> { new TriggerConfig { Keys = "Ctrl+Shift+K" } },
+        Target = "korean"
+    };
+
+    var errors = InputFlowConfigValidator.Validate(config);
+
+    AssertEqual(0, errors.Count, string.Join(Environment.NewLine, errors));
+}
+
 static void PreviousWorkflowConfigIsValidWithoutTarget()
 {
     var config = CreateKnownWorkingWorkflowConfig();
@@ -223,6 +244,45 @@ static void PreviousWorkflowConfigIsValidWithoutTarget()
         Mode = "previous",
         Triggers = new List<TriggerConfig> { new TriggerConfig { Keys = "Ctrl+Shift+Backspace" } }
     });
+
+    var errors = InputFlowConfigValidator.Validate(config);
+
+    AssertEqual(0, errors.Count, string.Join(Environment.NewLine, errors));
+}
+
+static void ToggleWorkflowRejectsUnsupportedReturnBehavior()
+{
+    var config = CreateKnownWorkingWorkflowConfig();
+    config.Workflows[0].ReturnBehavior = "surprise";
+
+    var errors = InputFlowConfigValidator.Validate(config);
+
+    AssertContains(errors, "ReturnBehavior 'surprise' is not supported");
+}
+
+static void NonToggleWorkflowsIgnoreReturnBehavior()
+{
+    var config = CreateKnownWorkingWorkflowConfig();
+    config.Workflows = new List<WorkflowConfig>
+    {
+        new WorkflowConfig
+        {
+            Id = "direct-korean",
+            Name = "Direct Korean",
+            Mode = "switchTo",
+            Triggers = new List<TriggerConfig> { new TriggerConfig { Keys = "Ctrl+Shift+K" } },
+            Target = "korean",
+            ReturnBehavior = "not-used"
+        },
+        new WorkflowConfig
+        {
+            Id = "previous-profile",
+            Name = "Previous profile",
+            Mode = "previous",
+            Triggers = new List<TriggerConfig> { new TriggerConfig { Keys = "Ctrl+Shift+Backspace" } },
+            ReturnBehavior = "not-used"
+        }
+    };
 
     var errors = InputFlowConfigValidator.Validate(config);
 
@@ -645,6 +705,18 @@ static void SetupModelBlocksAmbiguousAndMissingProfiles()
     AssertFalse(workflow.CanRegister, "Workflow should be blocked.");
     AssertContains(workflow.BlockingReasons, "Target profile 'ambiguous' is ambiguous.");
     AssertContains(workflow.BlockingReasons, "Fallback profile 'missing' is missing.");
+}
+
+static void SetupModelBlocksInvalidTrigger()
+{
+    var config = CreateKnownWorkingWorkflowConfig();
+    config.Workflows[0].Triggers[0].Keys = "Ctrl+NoSuchKey";
+
+    var model = InputFlowSetupModelBuilder.Build(config, CreateInstalledProfiles());
+    var workflow = model.Workflows.Single();
+
+    AssertFalse(workflow.CanRegister, "Invalid trigger should block the workflow.");
+    AssertContains(workflow.BlockingReasons, "Trigger 'Ctrl+NoSuchKey' is invalid");
 }
 
 static void SetupModelBlocksDuplicateTriggers()
