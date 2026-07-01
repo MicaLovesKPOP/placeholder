@@ -44,7 +44,7 @@ namespace InputFlow.App
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
-            ClientSize = new System.Drawing.Size(700, 680);
+            ClientSize = new System.Drawing.Size(700, 700);
 
             var switchableProfiles = profiles
                 .Where(profile => profile.CanUseForSwitching)
@@ -56,15 +56,14 @@ namespace InputFlow.App
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 6,
+                RowCount = 5,
                 Padding = new Padding(12)
             };
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 148));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 118));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 224));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             _nameTextBox = new TextBox { Dock = DockStyle.Fill, Text = "Language workflow", AccessibleName = "Workflow name", TabIndex = 0 };
@@ -188,13 +187,25 @@ namespace InputFlow.App
             actionSection.Controls.Add(_cycleTargetsLabel, 0, 4);
             actionSection.Controls.Add(_cycleTargetsControl, 1, 4);
 
+            var reviewSection = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 2,
+                Padding = new Padding(4, 8, 4, 4)
+            };
+            reviewSection.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            reviewSection.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+            reviewSection.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            reviewSection.Controls.Add(_summaryLabel, 0, 0);
+            reviewSection.Controls.Add(_errorLabel, 0, 1);
+
             root.Controls.Add(CreateSection("Workflow", workflowSection), 0, 0);
             root.Controls.Add(CreateSection("Trigger", triggerSection), 0, 1);
             root.Controls.Add(CreateSection("Action and return", actionSection), 0, 2);
-            root.Controls.Add(_summaryLabel, 0, 3);
-            root.Controls.Add(_errorLabel, 0, 4);
+            root.Controls.Add(CreateSection("Review", reviewSection), 0, 3);
             var buttonRow = CreateButtonRow();
-            root.Controls.Add(buttonRow, 0, 5);
+            root.Controls.Add(buttonRow, 0, 4);
 
             Controls.Add(root);
             ConfigureToolTips();
