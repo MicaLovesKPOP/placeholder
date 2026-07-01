@@ -329,14 +329,14 @@ namespace InputFlow.App
             string mode = GetSelectedMode();
             if (string.IsNullOrWhiteSpace(_nameTextBox.Text))
             {
-                _errorLabel.Text = "Name is required.";
+                ShowError("Name is required.", _nameTextBox);
                 return;
             }
 
             var triggers = ParseTriggers();
             if (!triggers.Success)
             {
-                _errorLabel.Text = triggers.Error;
+                ShowError(triggers.Error, _triggersTextBox);
                 return;
             }
 
@@ -368,7 +368,7 @@ namespace InputFlow.App
             {
                 if (cycleTargets.Count < 2)
                 {
-                    _errorLabel.Text = "Cycle workflows require at least two targets.";
+                    ShowError("Cycle workflows require at least two targets.", _cycleTargetsList);
                     return;
                 }
             }
@@ -378,7 +378,7 @@ namespace InputFlow.App
             }
             else if (target == null || string.IsNullOrWhiteSpace(target.ProfileId))
             {
-                _errorLabel.Text = "Target profile is required.";
+                ShowError("Target profile is required.", _targetComboBox);
                 return;
             }
 
@@ -386,7 +386,7 @@ namespace InputFlow.App
                 string.Equals(returnBehavior?.Value, "alwaysSpecificLayout", StringComparison.OrdinalIgnoreCase) &&
                 string.IsNullOrWhiteSpace(fallback?.ProfileId))
             {
-                _errorLabel.Text = "Always fallback profile requires a fallback.";
+                ShowError("Always fallback profile requires a fallback.", _fallbackComboBox);
                 return;
             }
 
@@ -394,7 +394,7 @@ namespace InputFlow.App
                 !string.IsNullOrWhiteSpace(target?.ProfileId) &&
                 string.Equals(target.ProfileId, fallback?.ProfileId, StringComparison.OrdinalIgnoreCase))
             {
-                _errorLabel.Text = "Fallback profile must be different from the target profile.";
+                ShowError("Fallback profile must be different from the target profile.", _fallbackComboBox);
                 return;
             }
 
@@ -411,6 +411,12 @@ namespace InputFlow.App
 
             DialogResult = DialogResult.OK;
             Close();
+        }
+
+        private void ShowError(string? message, Control focusControl)
+        {
+            _errorLabel.Text = message ?? "The workflow is invalid.";
+            focusControl.Focus();
         }
 
         private void UpdateModeVisibility()
