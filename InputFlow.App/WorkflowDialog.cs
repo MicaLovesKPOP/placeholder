@@ -32,6 +32,7 @@ namespace InputFlow.App
         private readonly Label _cycleTargetsLabel;
         private readonly Label _fallbackLabel;
         private readonly Label _returnBehaviorLabel;
+        private readonly Label _summaryLabel;
         private readonly Label _errorLabel;
         private readonly ToolTip _toolTip = new ToolTip();
 
@@ -42,7 +43,7 @@ namespace InputFlow.App
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
-            ClientSize = new System.Drawing.Size(680, 560);
+            ClientSize = new System.Drawing.Size(680, 620);
 
             var switchableProfiles = profiles
                 .Where(profile => profile.CanUseForSwitching)
@@ -54,7 +55,7 @@ namespace InputFlow.App
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 10,
+                RowCount = 11,
                 Padding = new Padding(12)
             };
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
@@ -67,6 +68,7 @@ namespace InputFlow.App
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 132));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
@@ -81,6 +83,7 @@ namespace InputFlow.App
             {
                 UpdateModeVisibility();
                 UpdateModeHelp();
+                UpdateSummary();
             };
             var modeControl = CreateModeControl();
 
@@ -95,6 +98,7 @@ namespace InputFlow.App
                 AcceptsReturn = true,
                 ScrollBars = ScrollBars.Vertical
             };
+            _triggersTextBox.TextChanged += (_, _) => UpdateSummary();
             var triggersControl = CreateTriggersControl();
             _modeHelpLabel = new Label
             {
@@ -106,26 +110,40 @@ namespace InputFlow.App
             _targetComboBox = CreateProfileComboBox(switchableProfiles);
             _targetComboBox.AccessibleName = "Target profile";
             _targetComboBox.TabIndex = 3;
+            _targetComboBox.SelectedIndexChanged += (_, _) => UpdateSummary();
             _fallbackComboBox = CreateProfileComboBox(new[] { new ProfileItem("", "(none)") }.Concat(switchableProfiles).ToList());
             _fallbackComboBox.AccessibleName = "Fallback profile";
             _fallbackComboBox.TabIndex = 4;
+            _fallbackComboBox.SelectedIndexChanged += (_, _) => UpdateSummary();
             _returnBehaviorComboBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = "Return behavior", TabIndex = 5 };
             _returnBehaviorComboBox.Items.Add(new ReturnBehaviorItem("lastNonTarget", "Last non-target profile"));
             _returnBehaviorComboBox.Items.Add(new ReturnBehaviorItem("alwaysSpecificLayout", "Always fallback profile"));
             _returnBehaviorComboBox.Items.Add(new ReturnBehaviorItem("manualOnly", "Manual return only"));
             _returnBehaviorComboBox.SelectedIndex = 0;
+            _returnBehaviorComboBox.SelectedIndexChanged += (_, _) => UpdateSummary();
 
             _cycleTargetsList = new CheckedListBox { Dock = DockStyle.Fill, CheckOnClick = true, AccessibleName = "Cycle targets", TabIndex = 6 };
             foreach (var profile in switchableProfiles)
             {
                 _cycleTargetsList.Items.Add(profile);
             }
+            _cycleTargetsList.ItemCheck += (_, _) => ScheduleSummaryUpdateAfterItemCheck();
             _cycleTargetsControl = CreateCycleTargetsControl();
 
             _targetLabel = CreateLabel("Target");
             _cycleTargetsLabel = CreateLabel("Cycle targets");
             _fallbackLabel = CreateLabel("Fallback");
             _returnBehaviorLabel = CreateLabel("Return behavior");
+            _summaryLabel = new Label
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = false,
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
+                ForeColor = System.Drawing.SystemColors.ControlText,
+                BorderStyle = BorderStyle.FixedSingle,
+                Padding = new Padding(8, 0, 8, 0),
+                AccessibleName = "Workflow summary"
+            };
             _errorLabel = new Label
             {
                 Dock = DockStyle.Fill,
@@ -146,10 +164,12 @@ namespace InputFlow.App
             root.Controls.Add(_returnBehaviorComboBox, 1, 6);
             root.Controls.Add(_cycleTargetsLabel, 0, 7);
             root.Controls.Add(_cycleTargetsControl, 1, 7);
-            root.Controls.Add(_errorLabel, 0, 8);
+            root.Controls.Add(_summaryLabel, 0, 8);
+            root.SetColumnSpan(_summaryLabel, 2);
+            root.Controls.Add(_errorLabel, 0, 9);
             root.SetColumnSpan(_errorLabel, 2);
             var buttonRow = CreateButtonRow();
-            root.Controls.Add(buttonRow, 0, 9);
+            root.Controls.Add(buttonRow, 0, 10);
             root.SetColumnSpan(buttonRow, 2);
 
             Controls.Add(root);
@@ -158,6 +178,7 @@ namespace InputFlow.App
             ApplyInitialDraft(initialDraft);
             UpdateModeVisibility();
             UpdateModeHelp();
+            UpdateSummary();
         }
 
         public WorkflowDraft Draft { get; private set; } = new WorkflowDraft();
@@ -567,6 +588,66 @@ namespace InputFlow.App
             _cycleTargetsList.Items.Insert(newIndex, item);
             _cycleTargetsList.SetItemChecked(newIndex, isChecked);
             _cycleTargetsList.SelectedIndex = newIndex;
+            UpdateSummary();
+        }
+
+        private void UpdateSummary()
+        {
+            string triggerSummary = GetTriggerSummary();
+            string mode = GetSelectedMode();
+            string target = GetSelectedProfileLabel(_targetComboBox);
+            string fallback = GetSelectedProfileLabel(_fallbackComboBox);
+            string cycleTargets = GetCheckedCycleTargetSummary();
+            string returnBehavior = _returnBehaviorComboBox.SelectedItem?.ToString() ?? "Last non-target profile";
+
+            _summaryLabel.Text = mode switch
+            {
+                "switchTo" => $"Summary: {triggerSummary} -> switch directly to {target}.",
+                "cycle" => $"Summary: {triggerSummary} -> cycle through {cycleTargets}.",
+                "previous" => $"Summary: {triggerSummary} -> switch to the previous observed profile.",
+                _ => $"Summary: {triggerSummary} -> switch to {target}; return behavior: {returnBehavior}; fallback: {fallback}."
+            };
+        }
+
+        private void ScheduleSummaryUpdateAfterItemCheck()
+        {
+            if (IsHandleCreated)
+            {
+                BeginInvoke((Action)UpdateSummary);
+            }
+        }
+
+        private string GetTriggerSummary()
+        {
+            var triggers = _triggersTextBox.Lines
+                .Select(line => line.Trim())
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .Take(3)
+                .ToList();
+            if (triggers.Count == 0)
+            {
+                return "trigger";
+            }
+
+            string suffix = _triggersTextBox.Lines.Count(line => !string.IsNullOrWhiteSpace(line)) > triggers.Count ? ", ..." : "";
+            return string.Join(", ", triggers) + suffix;
+        }
+
+        private static string GetSelectedProfileLabel(ComboBox combo)
+        {
+            return combo.SelectedItem is ProfileItem profile && !string.IsNullOrWhiteSpace(profile.ProfileId)
+                ? profile.ProfileId
+                : "(none)";
+        }
+
+        private string GetCheckedCycleTargetSummary()
+        {
+            var targets = _cycleTargetsList.CheckedItems
+                .OfType<ProfileItem>()
+                .Select(item => item.ProfileId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToList();
+            return targets.Count == 0 ? "(no targets selected)" : string.Join(" -> ", targets);
         }
 
         private static void AddRow(TableLayoutPanel root, int row, string label, Control input)
