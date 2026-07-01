@@ -32,6 +32,7 @@ namespace InputFlow.App
         private readonly Label _cycleTargetsLabel;
         private readonly Label _fallbackLabel;
         private readonly Label _returnBehaviorLabel;
+        private readonly Label _actionHelpLabel;
         private readonly Label _summaryLabel;
         private readonly Label _errorLabel;
         private readonly ToolTip _toolTip = new ToolTip();
@@ -77,6 +78,7 @@ namespace InputFlow.App
             {
                 UpdateModeVisibility();
                 UpdateModeHelp();
+                UpdateActionHelp();
                 UpdateSummary();
             };
             var modeControl = CreateModeControl();
@@ -114,7 +116,11 @@ namespace InputFlow.App
             _returnBehaviorComboBox.Items.Add(new ReturnBehaviorItem("alwaysSpecificLayout", "Always fallback profile"));
             _returnBehaviorComboBox.Items.Add(new ReturnBehaviorItem("manualOnly", "Manual return only"));
             _returnBehaviorComboBox.SelectedIndex = 0;
-            _returnBehaviorComboBox.SelectedIndexChanged += (_, _) => UpdateSummary();
+            _returnBehaviorComboBox.SelectedIndexChanged += (_, _) =>
+            {
+                UpdateActionHelp();
+                UpdateSummary();
+            };
 
             _cycleTargetsList = new CheckedListBox { Dock = DockStyle.Fill, CheckOnClick = true, AccessibleName = "Cycle targets", TabIndex = 6 };
             foreach (var profile in switchableProfiles)
@@ -128,6 +134,13 @@ namespace InputFlow.App
             _cycleTargetsLabel = CreateLabel("Cycle targets");
             _fallbackLabel = CreateLabel("Fallback");
             _returnBehaviorLabel = CreateLabel("Return behavior");
+            _actionHelpLabel = new Label
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = false,
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
+                ForeColor = System.Drawing.SystemColors.GrayText
+            };
             _summaryLabel = new Label
             {
                 Dock = DockStyle.Fill,
@@ -158,10 +171,11 @@ namespace InputFlow.App
             triggerSection.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             AddRow(triggerSection, 0, "Triggers", triggersControl);
 
-            var actionSection = CreateTwoColumnLayout(4);
+            var actionSection = CreateTwoColumnLayout(5);
             actionSection.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
             actionSection.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
             actionSection.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            actionSection.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
             actionSection.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             actionSection.Controls.Add(_targetLabel, 0, 0);
             actionSection.Controls.Add(_targetComboBox, 1, 0);
@@ -169,8 +183,10 @@ namespace InputFlow.App
             actionSection.Controls.Add(_fallbackComboBox, 1, 1);
             actionSection.Controls.Add(_returnBehaviorLabel, 0, 2);
             actionSection.Controls.Add(_returnBehaviorComboBox, 1, 2);
-            actionSection.Controls.Add(_cycleTargetsLabel, 0, 3);
-            actionSection.Controls.Add(_cycleTargetsControl, 1, 3);
+            actionSection.Controls.Add(_actionHelpLabel, 0, 3);
+            actionSection.SetColumnSpan(_actionHelpLabel, 2);
+            actionSection.Controls.Add(_cycleTargetsLabel, 0, 4);
+            actionSection.Controls.Add(_cycleTargetsControl, 1, 4);
 
             root.Controls.Add(CreateSection("Workflow", workflowSection), 0, 0);
             root.Controls.Add(CreateSection("Trigger", triggerSection), 0, 1);
@@ -186,6 +202,7 @@ namespace InputFlow.App
             ApplyInitialDraft(initialDraft);
             UpdateModeVisibility();
             UpdateModeHelp();
+            UpdateActionHelp();
             UpdateSummary();
         }
 
@@ -410,6 +427,36 @@ namespace InputFlow.App
                 "cycle" => "Cycle advances through the checked target profiles in list order. Use Move Up and Move Down to set the order.",
                 "previous" => "Previous profile switches back to the last profile InputFlow saw before the current one.",
                 _ => "Toggle switches to the target profile, then returns according to the selected return behavior."
+            };
+        }
+
+        private void UpdateActionHelp()
+        {
+            string mode = GetSelectedMode();
+            if (mode.Equals("cycle", StringComparison.OrdinalIgnoreCase))
+            {
+                _actionHelpLabel.Text = "Check every profile that belongs in this workflow. The trigger follows the list from top to bottom.";
+                return;
+            }
+
+            if (mode.Equals("previous", StringComparison.OrdinalIgnoreCase))
+            {
+                _actionHelpLabel.Text = "No target is needed. InputFlow returns to the last profile it observed before the current one.";
+                return;
+            }
+
+            if (mode.Equals("switchTo", StringComparison.OrdinalIgnoreCase))
+            {
+                _actionHelpLabel.Text = "Choose the profile to force. This mode does not remember or return to another profile.";
+                return;
+            }
+
+            string returnBehavior = (_returnBehaviorComboBox.SelectedItem as ReturnBehaviorItem)?.Value ?? "lastNonTarget";
+            _actionHelpLabel.Text = returnBehavior switch
+            {
+                "alwaysSpecificLayout" => "The trigger switches to the target, then returns to the fallback profile on the next press.",
+                "manualOnly" => "The trigger switches to the target only. Returning is left to Windows or another workflow.",
+                _ => "The trigger switches to the target, then returns to the most recent non-target profile InputFlow saw."
             };
         }
 
